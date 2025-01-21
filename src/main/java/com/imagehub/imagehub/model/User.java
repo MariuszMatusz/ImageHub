@@ -1,18 +1,36 @@
 package com.imagehub.imagehub.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users", uniqueConstraints = {
+        @UniqueConstraint(columnNames = "username"),
+        @UniqueConstraint(columnNames = "email")
+})
 public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "Username cannot be blank") // Pole nie może być puste
+    @Size(min = 3, max = 20, message = "Username must be between 3 and 20 characters") // Długość od 3 do 20 znaków
+    @Column(nullable = false, unique = true) // Ograniczenie na poziomie bazy danych
     private String username;
+
+    @NotBlank(message = "Password cannot be blank")
+    @Size(min = 6, message = "Password must be at least 6 characters long") // Minimalna długość hasła
     private String password;
+
+    @Email(message = "Email should be valid") // Walidacja poprawnego adresu email
+    @NotBlank(message = "Email cannot be blank")
+    @Column(nullable = false, unique = true) // Ograniczenie na poziomie bazy danych
     private String email;
+
+    @NotBlank(message = "Role cannot be blank") // Pole nie może być puste
     private String role; // np. "ADMIN", "USER"
 
     // Konstruktor bezargumentowy
