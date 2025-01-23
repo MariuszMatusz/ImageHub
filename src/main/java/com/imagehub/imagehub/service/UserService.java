@@ -27,18 +27,36 @@ public class UserService {
     }
 
     public User save(User user) {
+        // Sprawdzenie, czy użytkownik o podanym username już istnieje
+        if (userRepository.findByUsername(user.getUsername()).isPresent()) {
+            throw new IllegalArgumentException("User with this username already exists!");
+        }
+
+        // Sprawdzenie, czy użytkownik o podanym email już istnieje
+        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+            throw new IllegalArgumentException("User with this email already exists!");
+        }
+
+        // Hashowanie hasła przed zapisaniem
         user.setPassword(passwordEncoder.encode(user.getPassword()));
+
         return userRepository.save(user);
     }
 
     public void deleteById(Long id) {
         userRepository.deleteById(id);
     }
+
     public boolean checkPassword(String rawPassword, String encodedPassword) {
         return passwordEncoder.matches(rawPassword, encodedPassword);
     }
 
     public Optional<User> findByUsername(String username) {
         return userRepository.findByUsername(username);
+    }
+
+    // Dodatkowa metoda do hashowania hasła
+    public String hashPassword(String password) {
+        return passwordEncoder.encode(password);
     }
 }

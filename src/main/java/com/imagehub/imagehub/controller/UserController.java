@@ -31,11 +31,39 @@ public class UserController {
         return user.map(ResponseEntity::ok).orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
-    @PostMapping
-    public ResponseEntity<User> createUser(@Valid @RequestBody User user) {
+//    @PostMapping
+//    public ResponseEntity<User> createUser(@Valid @RequestBody User user) {
+//        User savedUser = userService.save(user);
+//        return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
+//    }
+@PostMapping
+public ResponseEntity<?> createUser(@Valid @RequestBody User user) {
+    try {
+        // Wywołanie serwisu, który obsługuje walidację i hashowanie
         User savedUser = userService.save(user);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
+    } catch (IllegalArgumentException e) {
+        // W przypadku naruszenia unikalności username/email zwracamy błąd 400
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
     }
+}
+
+
+//    @PutMapping("/{id}")
+//    public ResponseEntity<User> updateUser(@PathVariable Long id, @Valid @RequestBody User updatedUser) {
+//        Optional<User> existingUser = userService.findById(id);
+//        if (existingUser.isPresent()) {
+//            User user = existingUser.get();
+//            user.setUsername(updatedUser.getUsername());
+//            user.setEmail(updatedUser.getEmail());
+//            user.setPassword(updatedUser.getPassword());
+//            user.setRole(updatedUser.getRole());
+//            userService.save(user);
+//            return ResponseEntity.ok(user);
+//        } else {
+//            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+//        }
+//    }
 
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable Long id, @Valid @RequestBody User updatedUser) {
@@ -44,7 +72,10 @@ public class UserController {
             User user = existingUser.get();
             user.setUsername(updatedUser.getUsername());
             user.setEmail(updatedUser.getEmail());
-            user.setPassword(updatedUser.getPassword());
+
+            // Hashujemy hasło przed zapisem
+            user.setPassword(userService.hashPassword(updatedUser.getPassword()));
+
             user.setRole(updatedUser.getRole());
             userService.save(user);
             return ResponseEntity.ok(user);
@@ -52,6 +83,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
     }
+
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
