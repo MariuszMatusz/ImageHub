@@ -84,6 +84,27 @@ public ResponseEntity<?> createUser(@Valid @RequestBody User user) {
         }
     }
 
+    @PutMapping("/{id}/change-password")
+    public ResponseEntity<?> changePassword(@PathVariable Long id, @RequestParam String oldPassword, @RequestParam String newPassword) {
+        Optional<User> userOptional = userService.findById(id);
+        if (userOptional.isPresent()) {
+            User user = userOptional.get();
+
+            // Weryfikacja obecnego hasła
+            if (!userService.checkPassword(oldPassword, user.getPassword())) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid current password!");
+            }
+
+            // Aktualizacja hasła
+            user.setPassword(userService.hashPassword(newPassword));
+            userService.save(user);
+            return ResponseEntity.ok("Password updated successfully!");
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found!");
+        }
+    }
+
+
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
