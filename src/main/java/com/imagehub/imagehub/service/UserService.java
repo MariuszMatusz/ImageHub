@@ -1,5 +1,6 @@
 package com.imagehub.imagehub.service;
 
+import com.imagehub.imagehub.model.Role;
 import com.imagehub.imagehub.model.User;
 import com.imagehub.imagehub.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,11 @@ public class UserService {
             throw new IllegalArgumentException("User with this email already exists!");
         }
 
+        // Przypisanie domyślnej roli USER, jeśli użytkownik jej nie podał
+        if (user.getRole() == null) {
+            user.setRole(String.valueOf(Role.USER));
+        }
+
         // Hashowanie hasła przed zapisaniem
         user.setPassword(passwordEncoder.encode(user.getPassword()));
 
@@ -58,5 +64,10 @@ public class UserService {
     // Dodatkowa metoda do hashowania hasła
     public String hashPassword(String password) {
         return passwordEncoder.encode(password);
+    }
+
+    // Metoda do pobierania użytkowników na podstawie roli
+    public List<User> findByRole(Role role) {
+        return userRepository.findByRole(role);
     }
 }
