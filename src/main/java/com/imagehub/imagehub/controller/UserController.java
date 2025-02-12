@@ -1,14 +1,17 @@
 package com.imagehub.imagehub.controller;
 
+import com.imagehub.imagehub.model.Role;
 import com.imagehub.imagehub.model.User;
 import com.imagehub.imagehub.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.security.Principal;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,51 +23,52 @@ public class UserController {
     @Autowired
     private UserService userService;
 
+    // 🔹 ADMIN: Pobieranie listy użytkowników
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<List<User>> getAllUsers() {
         return ResponseEntity.ok(userService.findAll());
     }
 
+    // 🔹 ADMIN: Pobieranie użytkowników według roli
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/role/{role}")
+    public ResponseEntity<List<User>> getUsersByRole(@PathVariable Role role) {
+        return ResponseEntity.ok(userService.findByRole(role));
+    }
+
+    // 🔹 USER: Pobranie swojego konta (ADMIN widzi wszystkich)
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
+    public ResponseEntity<User> getUserById(@PathVariable Long id, Principal principal) {
         Optional<User> user = userService.findById(id);
-        return user.map(ResponseEntity::ok).orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+
+        if (user.isPresent()) {
+            User foundUser = user.get();
+
+            // Sprawdzamy, czy użytkownik prosi o swoje dane lub czy jest ADMINEM
+            if (foundUser.getUsername().equals(principal.getName()) || foundUser.getRole().equals(Role.ADMIN)) {
+                return ResponseEntity.ok(foundUser);
+            }
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
     }
 
-//    @PostMapping
-//    public ResponseEntity<User> createUser(@Valid @RequestBody User user) {
-//        User savedUser = userService.save(user);
-//        return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
-//    }
-@PostMapping
-public ResponseEntity<?> createUser(@Valid @RequestBody User user) {
-    try {
-        // Wywołanie serwisu, który obsługuje walidację i hashowanie
-        User savedUser = userService.save(user);
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
-    } catch (IllegalArgumentException e) {
-        // W przypadku naruszenia unikalności username/email zwracamy błąd 400
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+    // 🔹 ADMIN: Tworzenie użytkownika
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping
+    public ResponseEntity<?> createUser(@Valid @RequestBody User user) {
+        try {
+            User savedUser = userService.save(user);
+            return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
     }
-}
 
-
-//    @PutMapping("/{id}")
-//    public ResponseEntity<User> updateUser(@PathVariable Long id, @Valid @RequestBody User updatedUser) {
-//        Optional<User> existingUser = userService.findById(id);
-//        if (existingUser.isPresent()) {
-//            User user = existingUser.get();
-//            user.setUsername(updatedUser.getUsername());
-//            user.setEmail(updatedUser.getEmail());
-//            user.setPassword(updatedUser.getPassword());
-//            user.setRole(updatedUser.getRole());
-//            userService.save(user);
-//            return ResponseEntity.ok(user);
-//        } else {
-//            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-//        }
-//    }
-
+    // 🔹 ADMIN: Edycja użytkownika
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable Long id, @Valid @RequestBody User updatedUser) {
         Optional<User> existingUser = userService.findById(id);
@@ -73,7 +77,7 @@ public ResponseEntity<?> createUser(@Valid @RequestBody User user) {
             user.setUsername(updatedUser.getUsername());
             user.setEmail(updatedUser.getEmail());
 
-            // Hashujemy hasło przed zapisem
+            // ADMIN może aktualizować hasło użytkownika
             user.setPassword(userService.hashPassword(updatedUser.getPassword()));
 
             user.setRole(updatedUser.getRole());
@@ -84,11 +88,18 @@ public ResponseEntity<?> createUser(@Valid @RequestBody User user) {
         }
     }
 
+    // 🔹 USER & ADMIN: Zmiana hasła (każdy użytkownik może zmienić swoje)
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @PutMapping("/{id}/change-password")
-    public ResponseEntity<?> changePassword(@PathVariable Long id, @RequestParam String oldPassword, @RequestParam String newPassword) {
+    public ResponseEntity<?> changePassword(@PathVariable Long id, @RequestParam String oldPassword, @RequestParam String newPassword, Principal principal) {
         Optional<User> userOptional = userService.findById(id);
         if (userOptional.isPresent()) {
             User user = userOptional.get();
+
+            // Sprawdzamy, czy użytkownik zmienia swoje hasło
+            if (!user.getUsername().equals(principal.getName()) && !user.getRole().equals(Role.ADMIN)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You can only change your own password!");
+            }
 
             // Weryfikacja obecnego hasła
             if (!userService.checkPassword(oldPassword, user.getPassword())) {
@@ -104,8 +115,8 @@ public ResponseEntity<?> createUser(@Valid @RequestBody User user) {
         }
     }
 
-
-
+    // 🔹 ADMIN: Usuwanie użytkownika
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         if (userService.findById(id).isPresent()) {
