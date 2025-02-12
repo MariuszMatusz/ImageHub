@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,20 +42,41 @@ public class UserController {
     // 🔹 USER: Pobranie swojego konta (ADMIN widzi wszystkich)
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id, Principal principal) {
-        Optional<User> user = userService.findById(id);
-
-        if (user.isPresent()) {
-            User foundUser = user.get();
-
-            // Sprawdzamy, czy użytkownik prosi o swoje dane lub czy jest ADMINEM
-            if (foundUser.getUsername().equals(principal.getName()) || foundUser.getRole().equals(Role.ADMIN)) {
-                return ResponseEntity.ok(foundUser);
-            }
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    public ResponseEntity<User> getUserById(@PathVariable Long id) {
+        // Pobieramy użytkownika z bazy na podstawie przekazanego id
+        Optional<User> foundUserOptional = userService.findById(id);
+        if (foundUserOptional.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        User foundUser = foundUserOptional.get();
+
+        // Pobieramy obiekt Authentication z SecurityContextHolder i rzutujemy na nasz typ User
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        User loggedUser = (User) auth.getPrincipal();
+
+        // Jeśli zalogowany użytkownik ma rolę ADMIN, zwracamy dane dowolnego użytkownika
+        if (loggedUser.getRole().equals(Role.ADMIN)) {
+            return ResponseEntity.ok(foundUser);
+        }
+
+        // Jeśli użytkownik nie jest ADMINEM, może pobierać tylko swoje dane (porównanie id)
+        if (loggedUser.getId().equals(foundUser.getId())) {
+            return ResponseEntity.ok(foundUser);
+        }
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
     }
+
+
+
+
+
+
+
+
+
+
+
 
     // 🔹 ADMIN: Tworzenie użytkownika
     @PreAuthorize("hasRole('ADMIN')")

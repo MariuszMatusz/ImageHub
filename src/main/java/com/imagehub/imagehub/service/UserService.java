@@ -40,7 +40,7 @@ public class UserService {
 
         // Przypisanie domyślnej roli USER, jeśli użytkownik jej nie podał
         if (user.getRole() == null) {
-            user.setRole(String.valueOf(Role.USER));
+            user.setRole(Role.USER);
         }
 
         // Hashowanie hasła przed zapisaniem

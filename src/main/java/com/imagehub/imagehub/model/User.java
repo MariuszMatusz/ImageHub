@@ -31,14 +31,16 @@ public class User {
     @Column(nullable = false, unique = true) // Ograniczenie na poziomie bazy danych
     private String email;
 
-    @NotBlank(message = "Role cannot be blank") // Pole nie może być puste
-    private String role; // np. "ADMIN", "USER"
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+//    @NotBlank(message = "Role cannot be blank") // Pole nie może być puste
+    private Role role; // np. "ADMIN", "USER"
 
     // Konstruktor bezargumentowy
     public User() {}
 
     // Konstruktor z argumentami
-    public User(Long id, String username, String password, String email, String role) {
+    public User(Long id, String username, String password, String email, Role role) {
         this.id = id;
         this.username = username;
         this.password = password;
@@ -79,11 +81,11 @@ public class User {
         this.email = email;
     }
 
-    public String getRole() {
+    public Role getRole() {
         return role;
     }
 
-    public void setRole(String role) {
+    public void setRole(Role role) {
         this.role = role;
     }
 }
