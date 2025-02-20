@@ -1,41 +1,50 @@
 package com.imagehub.imagehub.security;
 
 import com.imagehub.imagehub.model.Role;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 
+@Component
 public class JwtUtil {
 
-    private static final Key SECRET_KEY = Keys.secretKeyFor(SignatureAlgorithm.HS256);
-    private static final long EXPIRATION_TIME = 1000 * 60 * 60 * 10; // 10 godzin
+    @Value("${jwt.secret}")
+    private String secret;
 
-    public String generateToken(String username, String role) { // 🔥 Teraz przekazujemy username i role
+    @Value("${jwt.expiration}")
+    private long jwtExpirationInMs;
+
+    private Key getSigningKey() {
+        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public String generateToken(String username, String role) {
         return Jwts.builder()
                 .setSubject(username)
-                .claim("role", role) // 🔥 Dodajemy rolę użytkownika do tokena
+                .claim("role", role)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
-                .signWith(SECRET_KEY)
+                .setExpiration(new Date(System.currentTimeMillis() + jwtExpirationInMs))
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
     public boolean validateToken(String token, String username) {
-        String tokenUsername = Jwts.parserBuilder()
-                .setSigningKey(SECRET_KEY)
-                .build()
-                .parseClaimsJws(token)
-                .getBody()
-                .getSubject();
-
-        return tokenUsername.equals(username);
+        try {
+            String tokenUsername = extractUsername(token);
+            return tokenUsername.equals(username) && !isTokenExpired(token);
+        } catch (JwtException e) {
+            return false;
+        }
     }
 
     public String extractUsername(String token) {
         return Jwts.parserBuilder()
-                .setSigningKey(SECRET_KEY)
+                .setSigningKey(getSigningKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody()
@@ -43,11 +52,22 @@ public class JwtUtil {
     }
 
     public Role extractRole(String token) {
-        return Role.valueOf(Jwts.parserBuilder()
-                .setSigningKey(SECRET_KEY)
+        String role = Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody()
-                .get("role", String.class));
+                .get("role", String.class);
+        return Role.valueOf(role);
+    }
+
+    private boolean isTokenExpired(String token) {
+        Date expiration = Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .getExpiration();
+        return expiration.before(new Date());
     }
 }

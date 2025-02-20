@@ -24,10 +24,10 @@ public class SecurityConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
 
-    @Bean
-    public JwtUtil jwtUtil() { // 🔥 Rejestracja beana
-        return new JwtUtil();
-    }
+//    @Bean
+//    public JwtUtil jwtUtil() { // 🔥 Rejestracja beana
+//        return new JwtUtil();
+//    }
 
 
 
@@ -44,10 +44,11 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login").permitAll()
-                        .requestMatchers("/error").permitAll()  // <-- Zezwalamy na dostęp do endpointu błędów
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/user/**").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers("/api/auth/login", "/error").permitAll()
+                        // Endpoint do pobierania danych aktualnego użytkownika – dostęp dla każdego uwierzytelnionego
+                        .requestMatchers("/api/users/me").authenticated()
+                        // Pozostałe endpointy pod /api/users/** dostępne tylko dla administratora
+                        .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
