@@ -48,7 +48,7 @@ public class SecurityConfig {
                         // Endpoint do pobierania danych aktualnego użytkownika – dostęp dla każdego uwierzytelnionego
                         .requestMatchers("/api/users/me").authenticated()
                         // Pozostałe endpointy pod /api/users/** dostępne tylko dla administratora
-                        .requestMatchers("/api/users/**").hasRole("ADMIN")
+                        .requestMatchers("/api/users/**").hasRole(Role.ADMIN.name())
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

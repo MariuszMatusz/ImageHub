@@ -1,6 +1,6 @@
 package com.imagehub.imagehub.controller;
 
-import com.imagehub.imagehub.model.Role;
+import com.imagehub.imagehub.model.Role;  // Importujemy enum dla użycia w zwykłym kodzie
 import com.imagehub.imagehub.model.User;
 import com.imagehub.imagehub.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,29 +23,29 @@ public class UserController {
     @Autowired
     private UserService userService;
 
-    // 🔹 ADMIN: Pobranie listy wszystkich użytkowników
-    @PreAuthorize("hasRole('ADMIN')")
+    // ADMIN: Pobranie listy wszystkich użytkowników
+    @PreAuthorize("hasRole(T(com.imagehub.imagehub.model.Role).ADMIN.name())")
     @GetMapping
     public ResponseEntity<List<User>> getAllUsers() {
         return ResponseEntity.ok(userService.findAll());
     }
 
-    // 🔹 ADMIN: Pobranie użytkowników według roli
-    @PreAuthorize("hasRole('ADMIN')")
+    // ADMIN: Pobranie użytkowników według roli (automatyczna konwersja URL na enum)
+    @PreAuthorize("hasRole(T(com.imagehub.imagehub.model.Role).ADMIN.name())")
     @GetMapping("/role/{role}")
-    public ResponseEntity<List<User>> getUsersByRole(@PathVariable Role role) {
+    public ResponseEntity<List<User>> getUsersByRole(@PathVariable("role") Role role) {
         return ResponseEntity.ok(userService.findByRole(role));
     }
 
-    // 🔹 USER/ADMIN: Pobranie danych aktualnie zalogowanego użytkownika
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    // USER/ADMIN: Pobranie danych aktualnie zalogowanego użytkownika
+    @PreAuthorize("hasAnyRole(T(com.imagehub.imagehub.model.Role).USER.name(), T(com.imagehub.imagehub.model.Role).ADMIN.name())")
     @GetMapping("/me")
     public ResponseEntity<User> getCurrentUser(@AuthenticationPrincipal User currentUser) {
         return ResponseEntity.ok(currentUser);
     }
 
-    // 🔹 ADMIN: Pobranie danych użytkownika po ID
-    @PreAuthorize("hasRole('ADMIN')")
+    // ADMIN: Pobranie danych użytkownika po ID
+    @PreAuthorize("hasRole(T(com.imagehub.imagehub.model.Role).ADMIN.name())")
     @GetMapping("/{id}")
     public ResponseEntity<User> getUserById(@PathVariable Long id) {
         Optional<User> requestedUserOpt = userService.findById(id);
@@ -55,8 +55,8 @@ public class UserController {
         return ResponseEntity.ok(requestedUserOpt.get());
     }
 
-    // 🔹 ADMIN: Tworzenie nowego użytkownika
-    @PreAuthorize("hasRole('ADMIN')")
+    // ADMIN: Tworzenie nowego użytkownika
+    @PreAuthorize("hasRole(T(com.imagehub.imagehub.model.Role).ADMIN.name())")
     @PostMapping
     public ResponseEntity<?> createUser(@Valid @RequestBody User user) {
         try {
@@ -67,8 +67,8 @@ public class UserController {
         }
     }
 
-    // 🔹 ADMIN: Aktualizacja użytkownika
-    @PreAuthorize("hasRole('ADMIN')")
+    // ADMIN: Aktualizacja użytkownika
+    @PreAuthorize("hasRole(T(com.imagehub.imagehub.model.Role).ADMIN.name())")
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable Long id, @Valid @RequestBody User updatedUser) {
         Optional<User> existingUserOpt = userService.findById(id);
@@ -76,7 +76,7 @@ public class UserController {
             User user = existingUserOpt.get();
             user.setUsername(updatedUser.getUsername());
             user.setEmail(updatedUser.getEmail());
-            if(updatedUser.getPassword() != null && !updatedUser.getPassword().isEmpty()){
+            if (updatedUser.getPassword() != null && !updatedUser.getPassword().isEmpty()) {
                 user.setPassword(userService.hashPassword(updatedUser.getPassword()));
             }
             user.setRole(updatedUser.getRole());
@@ -87,8 +87,8 @@ public class UserController {
         }
     }
 
-    // 🔹 USER/ADMIN: Zmiana hasła dla zalogowanego użytkownika
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    // USER/ADMIN: Zmiana hasła dla zalogowanego użytkownika
+    @PreAuthorize("hasAnyRole(T(com.imagehub.imagehub.model.Role).USER.name(), T(com.imagehub.imagehub.model.Role).ADMIN.name())")
     @PutMapping("/me/change-password")
     public ResponseEntity<?> changePassword(@AuthenticationPrincipal User currentUser,
                                             @RequestParam String oldPassword,
@@ -101,8 +101,8 @@ public class UserController {
         return ResponseEntity.ok("Password updated successfully!");
     }
 
-    // 🔹 ADMIN: Usunięcie użytkownika
-    @PreAuthorize("hasRole('ADMIN')")
+    // ADMIN: Usunięcie użytkownika
+    @PreAuthorize("hasRole(T(com.imagehub.imagehub.model.Role).ADMIN.name())")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         if (userService.findById(id).isPresent()) {
