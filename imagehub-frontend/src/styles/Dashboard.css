@@ -1,0 +1,36 @@
+/* Dashboard.css */
+
+/* Główny kontener całej podstrony Dashboard */
+.dashboard-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* pełna wysokość okna przeglądarki */
+    margin: 0;
+    padding: 0;
+}
+
+/* Sekcja poniżej Navbaru: sidebar + content */
+.dashboard-content {
+    display: flex;
+    flex: 1;         /* wypełnia resztę dostępnej wysokości */
+    overflow: hidden; /* zapobiega pojawieniu się suwaków w poziomie w razie potrzeby */
+}
+
+/* Główna część z treścią (po prawej od sidebara) */
+.content-area {
+    flex: 1;
+    padding: 16px;       /* odstęp wewnętrzny, by było trochę luzu wokół elementów */
+    background-color: #f8f9fa;
+    overflow-y: auto;     /* w pionie można przewijać, gdy zawartość jest zbyt duża */
+    box-sizing: border-box;
+}
+
+/* Jeżeli chcesz zadbać też o styl Navbara, możesz dodać np.: */
+/*
+.navbar-container {
+  width: 100%;
+  background-color: #fff;
+  border-bottom: 1px solid #ccc;
+  /* itd. *
+}
+*/

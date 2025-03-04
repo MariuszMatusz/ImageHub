@@ -21,5 +21,7 @@ public interface FolderPermissionRepository extends JpaRepository<FolderPermissi
          AND fp.permissionType IN ('READ','WRITE','ADMIN')
     """)
     List<Folder> findFoldersWithReadPermission(@Param("userId") Long userId);
+
+    void deleteByFolder(Folder folder);
 }
 

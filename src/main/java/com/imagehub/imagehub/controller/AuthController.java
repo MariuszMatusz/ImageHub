@@ -23,22 +23,21 @@ public class AuthController {
     private JwtUtil jwtUtil;
 
     @PostMapping("/login")
-    public ResponseEntity<Map<String, String>> login(@RequestParam String username, @RequestParam String password) {
-        Optional<User> optionalUser = userService.findByUsername(username);
+    public ResponseEntity<Map<String, String>> login(@RequestParam String email, @RequestParam String password) {
+        Optional<User> optionalUser = userService.findByEmail(email); // ✅ Zmiana na email
 
         if (optionalUser.isPresent()) {
             User user = optionalUser.get();
             boolean passwordMatches = userService.checkPassword(password, user.getPassword());
 
             if (passwordMatches) {
-                // 🔥 Sprawdzamy, czy `user.getRole()` to `Enum`
-                String role = user.getRole().name(); // Pobiera nazwę ENUM np. "ADMIN"
-                String token = jwtUtil.generateToken(user.getUsername(), role);
+                String role = user.getRole().name();
+                String token = jwtUtil.generateToken(user.getEmail(), role); // ✅ Użycie email zamiast username
 
-                // 🔥 Zwracamy token jako JSON
                 Map<String, String> response = new HashMap<>();
                 response.put("token", token);
                 response.put("role", role);
+                response.put("userId", String.valueOf(user.getId()));
 
                 return ResponseEntity.ok(response);
             } else {

@@ -2,6 +2,7 @@ package com.imagehub.imagehub.controller;
 
 import com.imagehub.imagehub.model.Folder;
 import com.imagehub.imagehub.model.FolderPermission;
+import com.imagehub.imagehub.model.Role;
 import com.imagehub.imagehub.model.User;
 import com.imagehub.imagehub.service.CloudStorageService;
 import com.imagehub.imagehub.service.FolderPermissionService;
@@ -16,6 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/folders")
@@ -133,14 +135,48 @@ public class FolderController {
     }
 
 
-//    Wywołanie wszystkich folderów, do których user ma dostęp
+////    Wywołanie wszystkich folderów, do których user ma dostęp
+//@PreAuthorize("hasAnyRole('ADMIN','USER')")
+//@GetMapping("/my-folders")
+//public ResponseEntity<List<Folder>> getMyFolders(@AuthenticationPrincipal User currentUser) {
+//    List<Folder> accessibleFolders = folderPermissionService.getFoldersUserCanView(currentUser.getId());
+//    return ResponseEntity.ok(accessibleFolders);
+//}
+
 @PreAuthorize("hasAnyRole('ADMIN','USER')")
 @GetMapping("/my-folders")
 public ResponseEntity<List<Folder>> getMyFolders(@AuthenticationPrincipal User currentUser) {
-    List<Folder> accessibleFolders = folderPermissionService.getFoldersUserCanView(currentUser.getId());
+    List<Folder> accessibleFolders;
+
+    // Sprawdzamy rolę użytkownika
+    if (currentUser.getRole().equals(Role.ADMIN)) {
+        // Dla ADMINa zwracamy wszystkie foldery, ale unikalne (bez duplikatów)
+        accessibleFolders = folderService.getUniqueFolders();
+    } else {
+        // Dla USERa pobieramy foldery, do których ma dostęp
+        accessibleFolders = folderPermissionService.getFoldersUserCanView(currentUser.getId());
+
+        // Opcjonalnie usuwamy ewentualne duplikaty, używając normalizacji
+        accessibleFolders = accessibleFolders.stream()
+                .collect(Collectors.toMap(
+                        folder -> folderService.normalizePath(folder.getPathInCloud()),
+                        folder -> folder,
+                        (existing, replacement) -> existing  // w przypadku duplikatów zostawiamy pierwszy napotkany
+                ))
+                .values().stream().collect(Collectors.toList());
+    }
+
     return ResponseEntity.ok(accessibleFolders);
 }
 
+
+
+    @GetMapping("/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<Folder>> getAllFolders() {
+        List<Folder> folders = folderService.getAllFolders();
+        return ResponseEntity.ok(folders);
+    }
 
 
 }

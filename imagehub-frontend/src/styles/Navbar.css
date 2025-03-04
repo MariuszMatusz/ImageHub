@@ -1,0 +1,103 @@
+/* Pasek nawigacyjny (stały na górze) */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #1A2A42;
+    padding: 15px 30px;
+    color: #FFFFFF;
+    position: fixed; /* Utrzymuje navbar na stałe */
+    top: 0; /* Przypięcie do góry ekranu */
+    left: 0;
+    width: 100%;
+    z-index: 1000; /* Zapobiega zakrywaniu przez inne elementy */
+    height: 70px;
+}
+
+/* Logo */
+.navbar-logo {
+    display: flex;
+    align-items: center;
+}
+
+.navbar-logo span {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    font-size: 20px;
+    color: #FFFFFF;
+}
+
+.navbar-logo img {
+    height: 60px; /* Ustaw wysokość loga */
+    width: auto; /* Zachowanie proporcji */
+    max-height: 100%; /* Nie przekracza wysokości kontenera */
+    object-fit: contain; /* Zapobiega rozciąganiu */
+    margin-right: 10px;
+}
+
+
+/* Linki w navbarze */
+.navbar-links {
+    list-style: none;
+    display: flex;
+    gap: 20px;
+}
+
+.navbar-links li {
+    display: inline;
+}
+
+.navbar-links a {
+    color: white;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.navbar-links a:hover {
+    text-decoration: underline;
+}
+
+/* Dodatkowe style dla opcji w prawym górnym rogu */
+.navbar-options {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.navbar-link {
+    color: white;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.navbar-link:hover {
+    text-decoration: underline;
+}
+
+.navbar-logout {
+    background-color: transparent;
+    border: none;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.navbar-logout img {
+    height: 60px; /* Ustaw wysokość loga */
+    width: auto; /* Zachowanie proporcji */
+    max-height: 100%; /* Nie przekracza wysokości kontenera */
+    object-fit: contain; /* Zapobiega rozciąganiu */
+    margin-right: 5px;
+}
+
+.navbar-logout:hover {
+    text-decoration: underline;
+}
+
+/* Upewnij się, że zawartość strony nie wchodzi pod navbar */
+body {
+    margin-top: 60px; /* Dopasuj do wysokości navbaru */
+}

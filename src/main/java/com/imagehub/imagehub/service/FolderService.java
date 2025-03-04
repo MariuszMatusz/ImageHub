@@ -1,15 +1,22 @@
 package com.imagehub.imagehub.service;
 
 import com.imagehub.imagehub.model.Folder;
+import com.imagehub.imagehub.model.FolderPermission;
+import com.imagehub.imagehub.model.Role;
+import com.imagehub.imagehub.model.User;
+import com.imagehub.imagehub.repository.FolderPermissionRepository;
 import com.imagehub.imagehub.repository.FolderRepository;
+import com.imagehub.imagehub.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class FolderService {
@@ -17,12 +24,45 @@ public class FolderService {
     @Autowired
     private FolderRepository folderRepository;
 
+
     @Autowired
     private CloudStorageService cloudStorageService;
     // tu wstrzyknie się NextcloudStorageService albo inna implementacja
 
+    @Autowired
+    private FolderPermissionRepository folderPermissionRepository;
+
     @Value("${nextcloud.url}")
     private String nextcloudUrl;
+
+
+
+
+    /**
+     * Pobiera nazwę folderu z pełnej ścieżki
+     * @param path Ścieżka np. "files/TestowyFolder"
+     * @return "TestowyFolder"
+     */
+    private String extractFolderName(String path) {
+        String[] parts = path.split("/");
+        return parts[parts.length - 1]; // Pobiera ostatni segment ścieżki
+    }
+
+    public String normalizePath(String path) {
+        if (path == null) {
+            return null;
+        }
+        if (path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        String prefix = nextcloudUrl.endsWith("/") ? nextcloudUrl : nextcloudUrl + "/";
+        if (path.startsWith(prefix)) {
+            path = path.substring(prefix.length());
+        }
+        return path;
+    }
+
+
 
     /**
      * Tworzy folder w Nextcloud (lub innej chmurze) oraz zapisuje w bazie
@@ -97,4 +137,73 @@ public class FolderService {
     public Optional<Folder> findById(Long id) {
         return folderRepository.findById(id);
     }
+
+    @Scheduled(fixedRate = 1000)
+    @Transactional
+    public void syncNextcloudFolders() throws IOException {
+        // Pobieramy listę folderów z Nextcloud
+        List<String> cloudFolderPaths = cloudStorageService.listFolders(nextcloudUrl);
+
+        // Normalizujemy pobrane ścieżki
+        List<String> normalizedCloudPaths = cloudFolderPaths.stream()
+                .map(this::normalizePath)
+                .filter(Objects::nonNull)
+                .distinct()  // zapobiega powtórzeniom w samej liście
+                .collect(Collectors.toList());
+
+        // Pobieramy foldery z bazy, które mają ustawioną ścieżkę (czyli te synchronizowane z Nextcloud)
+        List<Folder> dbFolders = folderRepository.findAll().stream()
+                .filter(folder -> folder.getPathInCloud() != null)
+                .collect(Collectors.toList());
+
+        // Usuń foldery, które nie znajdują się już w Nextcloud
+        for (Folder folder : dbFolders) {
+            String normalizedDbPath = normalizePath(folder.getPathInCloud());
+            if (!normalizedCloudPaths.contains(normalizedDbPath)) {
+                // Jeśli używasz kaskadowego usuwania w encji – wystarczy delete
+                // Jeśli nie, musisz ręcznie usunąć powiązane rekordy (patrz poprzednie rozwiązania)
+                folderPermissionRepository.deleteByFolder(folder);
+                folderRepository.delete(folder);
+            }
+        }
+
+        // Dodaj nowe foldery, których nie ma jeszcze w bazie
+        for (String cloudPath : normalizedCloudPaths) {
+            Optional<Folder> existingFolder = folderRepository.findByPathInCloud(cloudPath);
+            if (existingFolder.isEmpty()) {
+                Folder newFolder = new Folder();
+                newFolder.setName(extractFolderName(cloudPath));
+                newFolder.setPathInCloud(cloudPath);
+                newFolder.setFolderType("DEFAULT");
+                folderRepository.save(newFolder);
+            }
+        }
+    }
+
+    public List<Folder> getUniqueFolders() {
+        List<Folder> folders = folderRepository.findAll();
+        Map<String, Folder> uniqueFolders = new HashMap<>();
+        for (Folder folder : folders) {
+            String normalizedPath = normalizePath(folder.getPathInCloud());
+            if (normalizedPath != null && !uniqueFolders.containsKey(normalizedPath)) {
+                uniqueFolders.put(normalizedPath, folder);
+            }
+        }
+        return new ArrayList<>(uniqueFolders.values());
+    }
+
+
+
+
+
+    /**
+     * Zwraca wszystkie foldery.
+     * Użyj tego endpointu w kontrolerze, aby ADMIN widział wszystkie foldery.
+     */
+    public List<Folder> getAllFolders() {
+        return folderRepository.findAll();
+    }
+
 }
+
+

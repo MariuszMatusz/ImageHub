@@ -1,0 +1,13 @@
+/* Stopka (stała na dole) */
+.footer {
+    background-color: #1A2A42;
+    color: white;
+    text-align: center;
+    padding: 10px;
+    position: fixed; /* Utrzymuje stopkę na stałe */
+    bottom: 0; /* Przypięcie do dołu ekranu */
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+    height: 70px;
+}

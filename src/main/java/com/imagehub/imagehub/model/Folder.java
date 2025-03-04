@@ -1,6 +1,7 @@
 package com.imagehub.imagehub.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,8 +45,11 @@ public class Folder {
      * Lista podfolderów, które mają ten folder jako nadrzędny.
      */
     @OneToMany(mappedBy = "parentFolder", cascade = CascadeType.ALL)
-    @JsonBackReference
+    @JsonManagedReference
     private List<Folder> subfolders = new ArrayList<>();
+
+    @OneToMany(mappedBy = "folder", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<FolderPermission> folderPermissions;
 
     // -----------------------------------------------------
     // Konstruktory

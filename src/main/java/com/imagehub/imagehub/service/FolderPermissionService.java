@@ -2,6 +2,7 @@ package com.imagehub.imagehub.service;
 
 import com.imagehub.imagehub.model.Folder;
 import com.imagehub.imagehub.model.FolderPermission;
+import com.imagehub.imagehub.model.Role;
 import com.imagehub.imagehub.model.User;
 import com.imagehub.imagehub.repository.FolderPermissionRepository;
 import com.imagehub.imagehub.repository.FolderRepository;
@@ -10,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class FolderPermissionService {
@@ -67,9 +69,16 @@ public class FolderPermissionService {
     }
 
     public List<Folder> getFoldersUserCanView(Long userId) {
-        // zakładam, że w folderPermissionRepository masz metodę:
-        // findFoldersWithReadPermission(userId)
-        // która zwraca foldery z uprawnieniami READ/WRITE/ADMIN
-        return folderPermissionRepository.findFoldersWithReadPermission(userId);
+        Optional<User> user = userRepository.findById(userId);
+
+        if (user.isPresent() && user.get().getRole().equals(Role.ADMIN)) {
+            return folderRepository.findAll(); // Admin widzi wszystkie foldery
+        } else {
+            return folderPermissionRepository.findFoldersWithReadPermission(userId);
+        }
     }
+    public boolean hasPermission(Long userId, Long folderId) {
+        return folderPermissionRepository.findByFolderIdAndUserId(folderId, userId).size() > 0;
+    }
+
 }

@@ -28,10 +28,6 @@ public class UserService {
     }
 
     public User save(User user) {
-        // Sprawdzenie, czy użytkownik o podanym username już istnieje
-        if (userRepository.findByUsername(user.getUsername()).isPresent()) {
-            throw new IllegalArgumentException("User with this username already exists!");
-        }
 
         // Sprawdzenie, czy użytkownik o podanym email już istnieje
         if (userRepository.findByEmail(user.getEmail()).isPresent()) {
@@ -57,8 +53,8 @@ public class UserService {
         return passwordEncoder.matches(rawPassword, encodedPassword);
     }
 
-    public Optional<User> findByUsername(String username) {
-        return userRepository.findByUsername(username);
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
     }
 
     // Dodatkowa metoda do hashowania hasła
