@@ -1,85 +1,107 @@
 package com.imagehub.imagehub.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 @Entity
-@Table(
-        name = "folder_permissions",
-        uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"folder_id", "user_id"})
-        }
-)
+@Table(name = "folder_permissions",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"folder_path", "user_id"}))
 public class FolderPermission {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /**
-     * Folder, do którego odnosi się dane uprawnienie.
-     */
-    @ManyToOne
-    @JoinColumn(name = "folder_id", nullable = false)
-    private Folder folder;
+    @NotBlank(message = "Folder path cannot be blank")
+    @Column(name = "folder_path", nullable = false)
+    private String folderPath;
 
-    /**
-     * Użytkownik, któremu przypisano dane uprawnienie.
-     */
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_id", nullable = false)
+    @NotNull(message = "User cannot be null")
     private User user;
 
-    /**
-     * Typ uprawnienia, np. READ, WRITE, ADMIN itp.
-     * Możesz też użyć enuma (FolderPermissionType) zamiast String.
-     */
-    @Column(nullable = false)
-    private String permissionType;
+    @Column(name = "can_read", nullable = false)
+    private boolean canRead = true;
 
-    // ----------------------------------------
-    // Konstruktory
-    // ----------------------------------------
+    @Column(name = "can_write", nullable = false)
+    private boolean canWrite = false;
+
+    @Column(name = "can_delete", nullable = false)
+    private boolean canDelete = false;
+
+    @Column(name = "include_subfolders", nullable = false)
+    private boolean includeSubfolders = false;
+
+    // Konstruktor domyślny
     public FolderPermission() {
     }
 
-    public FolderPermission(Folder folder, User user, String permissionType) {
-        this.folder = folder;
+    // Konstruktor z parametrami
+    public FolderPermission(String folderPath, User user, boolean canRead, boolean canWrite, boolean canDelete, boolean includeSubfolders) {
+        this.folderPath = folderPath;
         this.user = user;
-        this.permissionType = permissionType;
+        this.canRead = canRead;
+        this.canWrite = canWrite;
+        this.canDelete = canDelete;
+        this.includeSubfolders = includeSubfolders;
     }
 
-    // ----------------------------------------
-    // Gettery / Settery
-    // ----------------------------------------
+    // Gettery i settery
     public Long getId() {
         return id;
-    }
-
-    public Folder getFolder() {
-        return folder;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public String getPermissionType() {
-        return permissionType;
     }
 
     public void setId(Long id) {
         this.id = id;
     }
 
-    public void setFolder(Folder folder) {
-        this.folder = folder;
+    public String getFolderPath() {
+        return folderPath;
+    }
+
+    public void setFolderPath(String folderPath) {
+        this.folderPath = folderPath;
+    }
+
+    public User getUser() {
+        return user;
     }
 
     public void setUser(User user) {
         this.user = user;
     }
 
-    public void setPermissionType(String permissionType) {
-        this.permissionType = permissionType;
+    public boolean isCanRead() {
+        return canRead;
+    }
+
+    public void setCanRead(boolean canRead) {
+        this.canRead = canRead;
+    }
+
+    public boolean isCanWrite() {
+        return canWrite;
+    }
+
+    public void setCanWrite(boolean canWrite) {
+        this.canWrite = canWrite;
+    }
+
+    public boolean isCanDelete() {
+        return canDelete;
+    }
+
+    public void setCanDelete(boolean canDelete) {
+        this.canDelete = canDelete;
+    }
+
+    public boolean isIncludeSubfolders() {
+        return includeSubfolders;
+    }
+
+    public void setIncludeSubfolders(boolean includeSubfolders) {
+        this.includeSubfolders = includeSubfolders;
     }
 }

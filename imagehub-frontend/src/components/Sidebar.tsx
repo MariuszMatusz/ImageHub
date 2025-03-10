@@ -2,103 +2,122 @@ import React, { useState } from "react";
 import "../styles/Sidebar.css";
 
 interface Folder {
-    id: number;
+    path: string;
     name: string;
-    subfolders?: Folder[];
+    isDirectory: boolean;
+    children?: Folder[];
+    canWrite?: boolean;
+    canDelete?: boolean;
 }
 
 interface SidebarProps {
     folders: Folder[];
-    setSelectedFolderId: (id: number | null) => void;
+    setSelectedFolderId: (path: string | null) => void;
+    isAdmin: boolean;
+    selectedFolderId: string | null;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ folders, setSelectedFolderId }) => {
-    const [expandedFolders, setExpandedFolders] = useState<number[]>([]);
+const Sidebar: React.FC<SidebarProps> = ({ folders, setSelectedFolderId, isAdmin, selectedFolderId }) => {
+    const [expandedFolders, setExpandedFolders] = useState<string[]>(["Bikes"]);
     const [searchTerm, setSearchTerm] = useState("");
 
     /**
      * Rozwijanie folderu po kliknięciu w ikonę (strzałkę).
      */
-    const toggleFolder = (
-        folderId: number,
-        event: React.MouseEvent
-    ) => {
-        event.stopPropagation(); // Aby kliknięcie nie wywoływało handleFolderClick
+    const toggleFolder = (folderPath: string, event: React.MouseEvent) => {
+        event.stopPropagation(); // Zapobiega wywołaniu handleFolderClick
         setExpandedFolders((prev) =>
-            prev.includes(folderId)
-                ? prev.filter((id) => id !== folderId)
-                : [...prev, folderId]
+            prev.includes(folderPath)
+                ? prev.filter((p) => p !== folderPath)
+                : [...prev, folderPath]
         );
     };
 
     /**
-     * Obsługa kliknięcia w nazwę folderu – np. ustawiamy wybrany folder.
+     * Obsługa kliknięcia w nazwę folderu – ustawiamy wybrany folder.
      */
-    const handleFolderClick = (folderId: number) => {
-        setSelectedFolderId(folderId);
+    const handleFolderClick = (folderPath: string) => {
+        setSelectedFolderId(folderPath);
     };
 
     /**
-     * Filtrowanie folderów po wpisanym tekście w polu wyszukiwania.
+     * Funkcja rekurencyjna do renderowania folderów i podfolderów.
+     */
+    const renderFolder = (folder: Folder) => {
+        // Wyświetlamy tylko foldery
+        if (!folder.isDirectory) return null;
+
+        // Sprawdź czy folder jest aktualnie wybrany
+        const isSelected = selectedFolderId === folder.path;
+
+        // Sprawdź czy folder ma dzieci
+        const hasChildren = folder.children && folder.children.length > 0;
+
+        return (
+            <div key={folder.path} className="category-block">
+                <div
+                    className={`category-item ${isSelected ? 'selected' : ''}`}
+                    onClick={() => handleFolderClick(folder.path)}
+                >
+                    <span className="category-name">{folder.name}</span>
+                    {hasChildren && (
+                        <span
+                            className="toggle-icon"
+                            onClick={(e) => toggleFolder(folder.path, e)}
+                        >
+                            {expandedFolders.includes(folder.path) ? "▼" : "▶"}
+                        </span>
+                    )}
+                </div>
+
+                {expandedFolders.includes(folder.path) && hasChildren && (
+                    <div className="subcategory-list">
+                        {folder.children?.map((child) =>
+                            child.isDirectory ? (
+                                <div
+                                    key={child.path}
+                                    className={`subcategory-item ${selectedFolderId === child.path ? 'selected' : ''}`}
+                                    onClick={() => handleFolderClick(child.path)}
+                                >
+                                    {child.name}
+                                </div>
+                            ) : null
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    /**
+     * Filtrowanie folderów na podstawie wpisanego tekstu.
      */
     const filteredFolders = folders.filter((folder) =>
         folder.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
-        <>
+        <div className="sidebar-wrapper">
+            {/* Pole wyszukiwania poza głównym kontenerem */}
+            <div className="search-container">
+                <input
+                    type="text"
+                    placeholder="Search products"
+                    className="search-bar"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+
+            {/* Główny kontener sidebara */}
             <div className="sidebar">
-            <div className="sidebar-searchFolder">
-            {/* Pole wyszukiwania poza kontenerem */}
-            <input
-                type="text"
-                placeholder="Search folders"
-                className="search-bar"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-            /> </div>
-
-            <div className="sidebar-container">
-                {/* Lista folderów (z subfolderami) */}
-                <div className="folder-list">
-                    {filteredFolders.map((folder) => (
-                        <div key={folder.id} className="folder-block">
-                            <div
-                                className="folder-item"
-                                onClick={() => handleFolderClick(folder.id)}
-                            >
-                                <span>{folder.name}</span>
-                                {/* Ikona rozwijania, jeśli folder ma subfoldery */}
-                                {folder.subfolders && folder.subfolders.length > 0 && (
-                                    <span
-                                        className="toggle-icon"
-                                        onClick={(e) => toggleFolder(folder.id, e)}
-                                    >
-                  {expandedFolders.includes(folder.id) ? "▲" : "▼"}
-                </span>
-                                )}
-                            </div>
-
-                            {/* Lista subfolderów, jeśli folder jest rozwinięty */}
-                            {expandedFolders.includes(folder.id) && folder.subfolders && (
-                                <div className="subfolder-list">
-                                    {folder.subfolders.map((sub) => (
-                                        <div
-                                            key={sub.id}
-                                            className="subfolder-item"
-                                            onClick={() => handleFolderClick(sub.id)}
-                                        >
-                                            {sub.name}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    ))}
+                <div className="catalog-sidebar">
+                    <div className="sidebar-categories">
+                        {filteredFolders.map((folder) => renderFolder(folder))}
+                    </div>
                 </div>
             </div>
-            </div>
-        </>
+        </div>
     );
 };
 

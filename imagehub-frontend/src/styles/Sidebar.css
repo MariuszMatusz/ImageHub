@@ -1,98 +1,140 @@
+/* styles/Sidebar.css */
 
-.sidebar {
+.sidebar-wrapper {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    margin: 45px 50px;
+    align-items: flex-start;
+    margin: 25px 50px;
 }
 
-/* Główny kontener sidebara */
-.sidebar-container {
-
+/* Kontener wyszukiwania - teraz poza głównym sidebarem */
+.search-container {
     width: 241px;
-    height: 625px;
-    left: 23px;
-
-
-    background-color: #4E608E;
-    border-radius: 16px;  /* Kolor tła panelu - odcień niebieskiego */
-    /* Zaokrąglone rogi całego sidebara */
-    padding: 20px;                /* Odstęp wewnątrz sidebara */
-    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.15);
+    margin-bottom: 10px;
 }
 
-/* Pole wyszukiwania */
+/* Styl pola wyszukiwania */
 .search-bar {
-    width: 241px;
-    padding: 8px 12px;
-    border-radius: 6px;
+    width: 100%;
+    padding: 8px 12px 8px 30px;
     border: 1px solid #ccc;
+    border-radius: 6px;
+    background-color: white;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>');
+    background-repeat: no-repeat;
+    background-position: 8px center;
     font-size: 14px;
-
+    color: #333;
     box-sizing: border-box;
     outline: none;
 }
 
-/* Kontener listy folderów */
-.folder-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px; /* Odstęp pionowy między głównymi folderami */
+.search-bar::placeholder {
+    color: #666;
 }
 
-/* Blok pojedynczego folderu (z ewentualnymi subfolderami) */
-.folder-block {
+/* Główny kontener sidebara */
+.sidebar {
     display: flex;
     flex-direction: column;
+    align-items: center;
 }
 
-/* Folder główny (klikalny) */
-.folder-item {
+/* Styl sidebara */
+.catalog-sidebar {
+    width: 241px;
+    height: 625px;
+    left: 23px;
+    background-color: #4E608E;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.15);
+    color: white;
+    box-sizing: border-box;
+}
+
+.sidebar-categories {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    height: 100%;
+}
+
+.category-block {
+    margin-bottom: 0;
+}
+
+/* Styl dla głównych kategorii */
+.category-item {
     font-size: 16px;
-    font-weight: 600;
-    color: #FFFFFF;
-    background-color: rgba(255, 255, 255, 0.1);
-    padding: 10px 15px;
-    border-radius: 6px;
+    font-weight: 500;
+    color: white;
+    padding: 8px 0;
+    cursor: pointer;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
 }
 
-.folder-item:hover {
-    background-color: rgba(255, 255, 255, 0.2);
+.category-item:hover {
+    text-decoration: underline;
 }
 
-/* Ikona (strzałka) do rozwijania folderów */
+.category-item.selected {
+    font-weight: 600;
+}
+
+.category-name {
+    flex: 1;
+}
+
+/* Strzałka rozwijania kategorii */
 .toggle-icon {
-    font-size: 14px;
-    color: #E0E0E0;
-    margin-left: 10px;
+    font-size: 12px;
+    color: white;
+    padding-left: 5px;
 }
 
-/* Kontener subfolderów (wcięcie i linia po lewej) */
-.subfolder-list {
-    margin-left: 15px;
-    padding-left: 10px;
-    border-left: 2px solid rgba(255, 255, 255, 0.3);
+/* Styl dla podkategorii */
+.subcategory-list {
+    padding-left: 20px;
+    margin-top: 5px;
     display: flex;
     flex-direction: column;
-    gap: 6px;  /* Odstęp między subfolderami */
-    margin-top: 5px;
+    gap: 8px;
 }
 
-/* Styl pojedynczego subfolderu */
-.subfolder-item {
+.subcategory-item {
     font-size: 14px;
-    color: #D0D0D0;
-    cursor: pointer;
+    color: rgba(255, 255, 255, 0.85);
     padding: 5px 0;
-    transition: color 0.2s ease;
+    cursor: pointer;
 }
 
-.subfolder-item:hover {
-    color: #FFFFFF;
+.subcategory-item:hover {
+    color: white;
     text-decoration: underline;
+}
+
+.subcategory-item.selected {
+    font-weight: 500;
+    color: white;
+}
+
+/* Responsywność dla urządzeń mobilnych */
+@media (max-width: 768px) {
+    .sidebar-wrapper {
+        margin: 20px;
+        width: 100%;
+    }
+
+    .search-container {
+        width: 100%;
+    }
+
+    .catalog-sidebar {
+        width: 100%;
+        max-height: 400px;
+    }
 }

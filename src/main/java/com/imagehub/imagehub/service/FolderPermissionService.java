@@ -1,84 +1,103 @@
 package com.imagehub.imagehub.service;
 
-import com.imagehub.imagehub.model.Folder;
 import com.imagehub.imagehub.model.FolderPermission;
 import com.imagehub.imagehub.model.Role;
 import com.imagehub.imagehub.model.User;
 import com.imagehub.imagehub.repository.FolderPermissionRepository;
-import com.imagehub.imagehub.repository.FolderRepository;
-import com.imagehub.imagehub.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 
 @Service
 public class FolderPermissionService {
+    private static final Logger logger = LoggerFactory.getLogger(FolderPermissionService.class);
+
+    private final FolderPermissionRepository folderPermissionRepository;
 
     @Autowired
-    private FolderPermissionRepository folderPermissionRepository;
-
-    @Autowired
-    private FolderRepository folderRepository;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    public FolderPermission assignPermission(Long folderId, Long userId, String permission) {
-        Folder folder = folderRepository.findById(folderId)
-                .orElseThrow(() -> new IllegalArgumentException("Folder not found"));
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
-        // Szukamy czy już istnieje uprawnienie
-        FolderPermission fp = folderPermissionRepository
-                .findByFolderIdAndUserId(folderId, userId)
-                .stream()
-                .findFirst()
-                .orElse(new FolderPermission());
-
-        fp.setFolder(folder);
-        fp.setUser(user);
-        fp.setPermissionType(permission);
-
-        return folderPermissionRepository.save(fp);
+    public FolderPermissionService(FolderPermissionRepository folderPermissionRepository) {
+        this.folderPermissionRepository = folderPermissionRepository;
+        logger.info("🔹 Folder permission service initialized");
     }
 
-    public boolean canViewFolder(Long folderId, Long userId) {
-        // Pobieramy wszystkie uprawnienia użytkownika do tego folderu
-        List<FolderPermission> perms = folderPermissionRepository.findByFolderIdAndUserId(folderId, userId);
-
-        // Jeśli nie ma żadnych uprawnień, zwracamy false
-        if (perms.isEmpty()) {
-            return false;
-        }
-
-        // Jeśli wśród uprawnień jest READ, WRITE lub ADMIN – uznajemy, że może „widzieć” folder
-        for (FolderPermission fp : perms) {
-            String permissionType = fp.getPermissionType();
-            if ("READ".equalsIgnoreCase(permissionType)
-                    || "WRITE".equalsIgnoreCase(permissionType)
-                    || "ADMIN".equalsIgnoreCase(permissionType)) {
-                return true;
-            }
-        }
-
-        // Jeśli żadna z powyższych wartości nie wystąpiła, zwracamy false
-        return false;
+    /**
+     * Pobiera wszystkie uprawnienia dla danego użytkownika
+     */
+    public List<FolderPermission> getUserPermissions(User user) {
+        return folderPermissionRepository.findByUser(user);
     }
 
-    public List<Folder> getFoldersUserCanView(Long userId) {
-        Optional<User> user = userRepository.findById(userId);
+    /**
+     * Dodaje lub aktualizuje uprawnienie do folderu
+     */
+    @Transactional
+    public FolderPermission setPermission(String folderPath, User user, boolean canRead, boolean canWrite,
+                                          boolean canDelete, boolean includeSubfolders) {
 
-        if (user.isPresent() && user.get().getRole().equals(Role.ADMIN)) {
-            return folderRepository.findAll(); // Admin widzi wszystkie foldery
+        Optional<FolderPermission> existingPermission = folderPermissionRepository.findByFolderPathAndUser(folderPath, user);
+
+        if (existingPermission.isPresent()) {
+            FolderPermission permission = existingPermission.get();
+            permission.setCanRead(canRead);
+            permission.setCanWrite(canWrite);
+            permission.setCanDelete(canDelete);
+            permission.setIncludeSubfolders(includeSubfolders);
+            logger.info("Updated permissions for user {} on folder {}", user.getUsername(), folderPath);
+            return folderPermissionRepository.save(permission);
         } else {
-            return folderPermissionRepository.findFoldersWithReadPermission(userId);
+            FolderPermission newPermission = new FolderPermission(folderPath, user, canRead, canWrite, canDelete, includeSubfolders);
+            logger.info("Created new permissions for user {} on folder {}", user.getUsername(), folderPath);
+            return folderPermissionRepository.save(newPermission);
         }
     }
-    public boolean hasPermission(Long userId, Long folderId) {
-        return folderPermissionRepository.findByFolderIdAndUserId(folderId, userId).size() > 0;
+
+    /**
+     * Usuwa uprawnienie do folderu
+     */
+    @Transactional
+    public void removePermission(Long permissionId) {
+        folderPermissionRepository.deleteById(permissionId);
+        logger.info("Removed permission with ID {}", permissionId);
     }
 
+    /**
+     * Sprawdza czy użytkownik ma dostęp do odczytu folderu
+     */
+    public boolean canUserReadFolder(User user, String folderPath) {
+        // Admini mają dostęp do wszystkiego
+        if (user.getRole() == Role.ADMIN) {
+            return true;
+        }
+
+        return folderPermissionRepository.hasReadPermission(user, folderPath);
+    }
+
+    /**
+     * Sprawdza czy użytkownik ma dostęp do zapisu do folderu
+     */
+    public boolean canUserWriteFolder(User user, String folderPath) {
+        // Admini mają dostęp do wszystkiego
+        if (user.getRole() == Role.ADMIN) {
+            return true;
+        }
+
+        return folderPermissionRepository.hasWritePermission(user, folderPath);
+    }
+
+    /**
+     * Sprawdza czy użytkownik ma dostęp do usunięcia folderu
+     */
+    public boolean canUserDeleteFolder(User user, String folderPath) {
+        // Admini mają dostęp do wszystkiego
+        if (user.getRole() == Role.ADMIN) {
+            return true;
+        }
+
+        return folderPermissionRepository.hasDeletePermission(user, folderPath);
+    }
 }
