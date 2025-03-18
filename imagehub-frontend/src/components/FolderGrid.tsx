@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axiosInstance from "../utils/axiosInstance";
 import "../styles/FolderGrid.css";
+import ProductCard from "./ProductCard";
 
-// Interfejs odpowiadający strukturze zwracanej przez API Nextcloud
+// Interface for folder structure from Nextcloud API
 interface Folder {
     name: string;
     path: string;
@@ -12,15 +13,31 @@ interface Folder {
     lastModified?: string;
     canWrite?: boolean;
     canDelete?: boolean;
+    isProductFolder?: boolean;
+    hasChildrenAsProducts?: boolean;
 }
 
 interface FolderGridProps {
     parentFolderId: string | null;
     userRole: string;
+    searchTerm?: string;
+    isGlobalSearch?: boolean;
+    searchResults?: Folder[];
 }
 
-const FolderGrid: React.FC<FolderGridProps> = ({ parentFolderId, userRole }) => {
+const FolderGrid: React.FC<FolderGridProps> = ({
+                                                   parentFolderId,
+                                                   userRole,
+                                                   searchTerm = "",
+                                                   isGlobalSearch = false,
+                                                   searchResults = []
+                                               }) => {
+    // Store previous parentFolderId to detect actual changes
+    const previousParentFolderIdRef = useRef<string | null>(null);
+
+    // State initialization with default showCurrentFolder=true
     const [items, setItems] = useState<Folder[]>([]);
+    const [allItems, setAllItems] = useState<Folder[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showUploadModal, setShowUploadModal] = useState(false);
@@ -29,37 +46,343 @@ const FolderGrid: React.FC<FolderGridProps> = ({ parentFolderId, userRole }) => 
     const [fileToUpload, setFileToUpload] = useState<File | null>(null);
     const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [sortOrder, setSortOrder] = useState<string>("newest");
-    const [currentSeason, setCurrentSeason] = useState<string>("2025");
+    // Default to true to always show folder contents
+    const [showCurrentFolder, setShowCurrentFolder] = useState<boolean>(false);
+    const [showSortDropdown, setShowSortDropdown] = useState(false);
+    const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
+        const savedViewMode = localStorage.getItem('folderViewMode');
+        return (savedViewMode === "list" || savedViewMode === "grid") ? savedViewMode : "grid";
+    });
+    const [selectedProductFolder, setSelectedProductFolder] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (parentFolderId === null) return;
+    // Multi-selection feature states
+    const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+    const [selectionMode, setSelectionMode] = useState<boolean>(false);
+
+    // Check if user is admin
+    const isAdmin = userRole === 'ADMIN';
+
+    // References for custom scrolling
+    const scrollAreaRef = useRef<HTMLDivElement>(null);
+    const scrollThumbRef = useRef<HTMLDivElement>(null);
+    const scrollTrackRef = useRef<HTMLDivElement>(null);
+    const [thumbHeight, setThumbHeight] = useState<number>(20);
+    const [thumbTop, setThumbTop] = useState<number>(0);
+    const [isDragging, setIsDragging] = useState<boolean>(false);
+    const [startY, setStartY] = useState<number>(0);
+    const [startTop, setStartTop] = useState<number>(0);
+
+    // Sort options
+    const sortOptions = [
+        { value: "newest", label: "Najnowszych" },
+        { value: "oldest", label: "Najstarszych" },
+        { value: "nameAsc", label: "Nazwa A-Z" },
+        { value: "nameDesc", label: "Nazwa Z-A" }
+    ];
+
+    // Function to load folder contents
+    const loadFolderContents = (path: string | null) => {
+        console.log("loadFolderContents called with path:", path);
+        if (path === null) {
+            console.log("Path is null, skipping loading");
+            return;
+        }
 
         setLoading(true);
         setError(null);
 
-        // Ustal ścieżkę – gdy parentFolderId jest null pobieramy foldery główne (root)
-        const path = parentFolderId !== null ? parentFolderId : "";
+        // Determine path - when path is null load root folders
+        const folderPath = path !== null ? path : "";
+        console.log("Fetching contents for path:", folderPath);
 
         axiosInstance
             .get(`/nextcloud/files`, {
                 params: {
-                    path: path,
+                    path: folderPath,
                     includeChildren: false,
                     depth: 1,
                 }
             })
             .then(response => {
-                setItems(response.data);
+                console.log("Data fetched for folder:", path);
+                console.log("Number of items fetched:", response.data.length);
+
+                // Save all items
+                const allData = response.data;
+                setAllItems(allData);
+
+                // Set all items as visible (including current folder)
+                setItems(allData);
+
                 setLoading(false);
+
+                // Update scrollbar after loading data
+                updateScrollThumbHeight();
             })
             .catch(error => {
                 console.error("Error fetching items:", error);
                 setError("Nie udało się załadować zawartości folderu.");
                 setLoading(false);
             });
-    }, [parentFolderId]);
+    };
 
-    // Funkcja do tworzenia nowego folderu
+    // Effect to detect parentFolderId changes and force reload
+    useEffect(() => {
+        console.log("useEffect [parentFolderId] triggered");
+        console.log("Previous parentFolderId:", previousParentFolderIdRef.current);
+        console.log("Current parentFolderId:", parentFolderId);
+
+        // In global search mode, don't load folder contents
+        if (isGlobalSearch) {
+            console.log("Global search mode, skipping folder loading");
+            setItems(searchResults);
+            setLoading(false);
+            return;
+        }
+
+        // Check if parentFolderId actually changed
+        if (parentFolderId !== previousParentFolderIdRef.current) {
+            console.log("Detected actual parentFolderId change, reloading data");
+
+            // Clear items and allItems to show we're loading new content
+            setItems([]);
+            setAllItems([]);
+            setLoading(true);
+
+            // Load new folder contents
+            if (parentFolderId !== null) {
+                loadFolderContents(parentFolderId);
+            } else {
+                setLoading(false);
+            }
+
+            // Update reference to previous value
+            previousParentFolderIdRef.current = parentFolderId;
+        } else {
+            console.log("parentFolderId didn't change, skipping reload");
+        }
+    }, [parentFolderId, isGlobalSearch, searchResults]);
+
+    // Effect for updating search results
+    useEffect(() => {
+        if (isGlobalSearch) {
+            setItems(searchResults);
+            setLoading(false);
+        }
+    }, [isGlobalSearch, searchResults]);
+
+    // Effect that runs only once on component mount
+    useEffect(() => {
+        console.log("FolderGrid - initial component initialization");
+        console.log("Initial parentFolderId:", parentFolderId);
+
+        if (parentFolderId !== null && !isGlobalSearch) {
+            console.log("Initial loading of folder contents:", parentFolderId);
+            loadFolderContents(parentFolderId);
+        }
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Effect to observe showCurrentFolder changes - update display
+    useEffect(() => {
+        console.log("useEffect [showCurrentFolder, allItems] triggered");
+        console.log("showCurrentFolder:", showCurrentFolder);
+        console.log("allItems.length:", allItems.length);
+
+        if (allItems.length > 0 && !isGlobalSearch) {
+            handleToggleCurrentFolder(showCurrentFolder);
+        }
+    }, [showCurrentFolder, allItems, isGlobalSearch]);
+
+    // Functions for handling custom scrollbar
+    const updateScrollThumbHeight = () => {
+        if (!scrollAreaRef.current || !scrollTrackRef.current) return;
+
+        const scrollArea = scrollAreaRef.current;
+        const trackHeight = scrollTrackRef.current.clientHeight;
+
+        // Calculate thumb height proportion to track height
+        const contentHeight = scrollArea.scrollHeight;
+        const viewportHeight = scrollArea.clientHeight;
+        const ratio = viewportHeight / contentHeight;
+
+        // Minimum thumb height is 20px
+        const height = Math.max(ratio * trackHeight, 20);
+        setThumbHeight(height);
+    };
+
+    const updateScrollThumbPosition = () => {
+        if (!scrollAreaRef.current || !scrollTrackRef.current) return;
+
+        const scrollArea = scrollAreaRef.current;
+        const trackHeight = scrollTrackRef.current.clientHeight;
+
+        const contentHeight = scrollArea.scrollHeight;
+        const viewportHeight = scrollArea.clientHeight;
+        const scrollTop = scrollArea.scrollTop;
+
+        // Calculate thumb position based on scroll
+        const maxScrollTop = contentHeight - viewportHeight;
+        const ratio = scrollTop / maxScrollTop;
+
+        // Max thumb position is track height minus thumb height
+        const maxThumbTop = trackHeight - thumbHeight;
+        const thumbPosition = ratio * maxThumbTop;
+
+        setThumbTop(maxScrollTop <= 0 ? 0 : thumbPosition);
+    };
+
+    const handleScrollAreaScroll = () => {
+        updateScrollThumbPosition();
+    };
+
+    const handleTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (!scrollAreaRef.current || !scrollTrackRef.current || !scrollThumbRef.current) return;
+
+        // Ignore click on thumb
+        if (e.target === scrollThumbRef.current) return;
+
+        const track = scrollTrackRef.current;
+        const scrollArea = scrollAreaRef.current;
+
+        const trackRect = track.getBoundingClientRect();
+        const clickY = e.clientY - trackRect.top;
+
+        // Scroll to corresponding position
+        const contentHeight = scrollArea.scrollHeight;
+        const viewportHeight = scrollArea.clientHeight;
+        const maxScrollTop = contentHeight - viewportHeight;
+
+        const trackHeight = track.clientHeight;
+        const ratio = clickY / trackHeight;
+        const scrollTo = ratio * maxScrollTop;
+
+        scrollArea.scrollTop = scrollTo;
+    };
+
+    const handleThumbMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+        setIsDragging(true);
+        setStartY(e.clientY);
+        setStartTop(thumbTop);
+
+        // Add event listeners to the whole document
+        document.addEventListener('mousemove', handleDocumentMouseMove);
+        document.addEventListener('mouseup', handleDocumentMouseUp);
+    };
+
+    const handleDocumentMouseMove = (e: MouseEvent) => {
+        if (!isDragging || !scrollAreaRef.current || !scrollTrackRef.current) return;
+
+        const scrollArea = scrollAreaRef.current;
+        const track = scrollTrackRef.current;
+
+        const deltaY = e.clientY - startY;
+        const trackHeight = track.clientHeight;
+
+        // Calculate new thumb position with constraints
+        const newThumbTop = Math.max(0, Math.min(startTop + deltaY, trackHeight - thumbHeight));
+
+        // Calculate corresponding scroll position
+        const contentHeight = scrollArea.scrollHeight;
+        const viewportHeight = scrollArea.clientHeight;
+        const maxScrollTop = contentHeight - viewportHeight;
+
+        const ratio = newThumbTop / (trackHeight - thumbHeight);
+        const scrollTo = ratio * maxScrollTop;
+
+        scrollArea.scrollTop = scrollTo;
+    };
+
+    const handleDocumentMouseUp = () => {
+        setIsDragging(false);
+
+        // Remove document event listeners
+        document.removeEventListener('mousemove', handleDocumentMouseMove);
+        document.removeEventListener('mouseup', handleDocumentMouseUp);
+    };
+
+    // Effect initializing scrollbar
+    useEffect(() => {
+        // Update thumb height on window resize
+        const handleResize = () => updateScrollThumbHeight();
+        window.addEventListener('resize', handleResize);
+
+        // Initialize scrollbar
+        updateScrollThumbHeight();
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            document.removeEventListener('mousemove', handleDocumentMouseMove);
+            document.removeEventListener('mouseup', handleDocumentMouseUp);
+        };
+    }, []);
+
+    // Update thumb position after items list changes
+    useEffect(() => {
+        updateScrollThumbHeight();
+    }, [items]);
+
+    // FIXED: Improved filter and sort function for items
+    const filterAndSortItems = () => {
+        let filteredItems = items;
+
+        // Apply search filter if not in global search
+        if (searchTerm.trim() && !isGlobalSearch) {
+            filteredItems = items.filter(item =>
+                item.name.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+
+        // Apply sorting
+        return [...filteredItems].sort((a, b) => {
+            switch (sortOrder) {
+                case "nameAsc":
+                    return a.name.localeCompare(b.name);
+                case "nameDesc":
+                    return b.name.localeCompare(a.name);
+                case "newest":
+                    // Sort by lastModified if available, newer first
+                    if (a.lastModified && b.lastModified) {
+                        return new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime();
+                    }
+                    return 0;
+                case "oldest":
+                    // Sort by lastModified if available, older first
+                    if (a.lastModified && b.lastModified) {
+                        return new Date(a.lastModified).getTime() - new Date(b.lastModified).getTime();
+                    }
+                    return 0;
+                default:
+                    return 0;
+            }
+        });
+    };
+
+    // Function to handle show current folder toggle
+    const handleToggleCurrentFolder = (showCurrent: boolean) => {
+        if (parentFolderId === null || allItems.length === 0) return;
+
+        const path = parentFolderId;
+
+        if (showCurrent) {
+            // Show all items including current folder
+            setItems(allItems);
+        } else {
+            // Filter out current folder
+            const filteredItems = allItems.filter((item: Folder) => {
+                if (path === '') return true;
+
+                const currentFolderName = path.split('/').pop() || '';
+                return !(item.path === path ||
+                    (item.isDirectory && item.name === currentFolderName && path.endsWith(item.name)));
+            });
+
+            setItems(filteredItems);
+        }
+    };
+
+    // Function to create new folder
     const createFolder = () => {
         if (!newFolderName.trim()) {
             setActionMessage({ type: 'error', text: 'Nazwa folderu nie może być pusta' });
@@ -75,7 +398,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({ parentFolderId, userRole }) => 
                 }
             })
             .then(() => {
-                // Dodaj nowy folder do listy
+                // Add new folder to list
                 const newFolder: Folder = {
                     name: newFolderName,
                     path: path,
@@ -83,7 +406,20 @@ const FolderGrid: React.FC<FolderGridProps> = ({ parentFolderId, userRole }) => 
                     canWrite: true,
                     canDelete: true
                 };
-                setItems([...items, newFolder]);
+                setAllItems([...allItems, newFolder]);
+
+                // Filter and sort appropriately
+                if (showCurrentFolder) {
+                    setItems(prev => [...prev, newFolder].sort((a, b) => {
+                        if (sortOrder === "nameAsc") return a.name.localeCompare(b.name);
+                        else if (sortOrder === "nameDesc") return b.name.localeCompare(a.name);
+                        return 0;
+                    }));
+                } else {
+                    // Do nothing because new folder is not current folder
+                    setItems(prev => [...prev, newFolder]);
+                }
+
                 setActionMessage({ type: 'success', text: 'Folder utworzony pomyślnie' });
                 setShowCreateFolderModal(false);
                 setNewFolderName("");
@@ -94,7 +430,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({ parentFolderId, userRole }) => 
             });
     };
 
-    // Funkcja do przesyłania pliku
+    // FIXED: Improved file upload function
     const uploadFile = () => {
         if (!fileToUpload) {
             setActionMessage({ type: 'error', text: 'Wybierz plik do przesłania' });
@@ -105,6 +441,8 @@ const FolderGrid: React.FC<FolderGridProps> = ({ parentFolderId, userRole }) => 
         formData.append('file', fileToUpload);
         formData.append('path', parentFolderId || '');
 
+        setActionMessage({ type: 'success', text: 'Przesyłanie pliku...' });
+
         axiosInstance
             .post('/nextcloud/upload', formData, {
                 headers: {
@@ -112,7 +450,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({ parentFolderId, userRole }) => 
                 }
             })
             .then(() => {
-                // Dodaj przesłany plik do listy
+                // Add uploaded file to list
                 const newFile: Folder = {
                     name: fileToUpload.name,
                     path: parentFolderId ? `${parentFolderId}/${fileToUpload.name}` : fileToUpload.name,
@@ -123,7 +461,10 @@ const FolderGrid: React.FC<FolderGridProps> = ({ parentFolderId, userRole }) => 
                     canWrite: true,
                     canDelete: true
                 };
-                setItems([...items, newFile]);
+
+                setAllItems([...allItems, newFile]);
+                setItems(prev => [...prev, newFile]);
+
                 setActionMessage({ type: 'success', text: 'Plik przesłany pomyślnie' });
                 setShowUploadModal(false);
                 setFileToUpload(null);
@@ -134,90 +475,472 @@ const FolderGrid: React.FC<FolderGridProps> = ({ parentFolderId, userRole }) => 
             });
     };
 
-    // Funkcja do usuwania pliku lub folderu
+    // FIXED: Improved delete function with better error handling
     const deleteItem = (item: Folder) => {
         if (!window.confirm(`Czy na pewno chcesz usunąć ${item.isDirectory ? 'folder' : 'plik'} ${item.name}?`)) {
             return;
         }
 
+        setActionMessage({ type: 'success', text: `Usuwanie ${item.isDirectory ? 'folderu' : 'pliku'}...` });
+
+        // Encode the path to handle special characters
+        const encodedPath = encodeURIComponent(item.path);
+
         axiosInstance
-            .delete(`/nextcloud/files/${item.path}`)
+            .delete(`/nextcloud/files`,  {params:{
+                file:item.path,
+                }})
             .then(() => {
-                // Usuń element z listy
+                // Remove item from lists
+                setAllItems(allItems.filter(i => i.path !== item.path));
                 setItems(items.filter(i => i.path !== item.path));
+
+                // Remove from selection if in selection mode
+                if (selectionMode && selectedItems.has(item.path)) {
+                    const newSelection = new Set(selectedItems);
+                    newSelection.delete(item.path);
+                    setSelectedItems(newSelection);
+                }
+
                 setActionMessage({ type: 'success', text: `${item.isDirectory ? 'Folder' : 'Plik'} usunięty pomyślnie` });
             })
             .catch(error => {
                 console.error("Error deleting item:", error);
-                setActionMessage({ type: 'error', text: `Błąd podczas usuwania: ${error.response?.data || 'Nieznany błąd'}` });
+                let errorMessage = "Błąd podczas usuwania";
+
+                if (error.response) {
+                    // The request was made and the server responded with a status code
+                    // that falls out of the range of 2xx
+                    errorMessage += `: ${error.response.data || error.response.status}`;
+                } else if (error.request) {
+                    // The request was made but no response was received
+                    errorMessage += ": Brak odpowiedzi z serwera";
+                } else {
+                    // Something happened in setting up the request that triggered an Error
+                    errorMessage += `: ${error.message}`;
+                }
+
+                setActionMessage({ type: 'error', text: errorMessage });
             });
     };
 
-    // Funkcja do pobierania pliku
+    // FIXED: Improved file download function
     const downloadFile = (item: Folder) => {
+        setActionMessage({ type: 'success', text: "Przygotowywanie pliku do pobrania..." });
+
+        // // Encode the path to handle special characters
+        // const encodedPath = encodeURIComponent(item.path);
+
         axiosInstance
-            .get(`/nextcloud/files/${item.path}`, {
+            .get(`/nextcloud/files/download`,  {
+                params: {
+                    file:item.path,
+                },
                 responseType: 'blob'
             })
             .then(response => {
-                // Utwórz link do pobrania pliku
-                const url = window.URL.createObjectURL(new Blob([response.data]));
+                // Create a blob from the response data
+                const blob = new Blob([response.data], {
+                    type: item.contentType || 'application/octet-stream'
+                });
+
+                // Create a download link
+                const url = window.URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = url;
                 link.setAttribute('download', item.name);
+
+                // Append to body, click and remove
                 document.body.appendChild(link);
                 link.click();
-                document.body.removeChild(link);
+
+                // Clean up
+                setTimeout(() => {
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                    setActionMessage({ type: 'success', text: "Plik pobrany pomyślnie" });
+
+                    // Clear message after 3 seconds
+                    setTimeout(() => {
+                        setActionMessage(null);
+                    }, 3000);
+                }, 100);
             })
             .catch(error => {
                 console.error("Error downloading file:", error);
-                setActionMessage({ type: 'error', text: "Błąd podczas pobierania pliku" });
+
+                let errorMessage = "Błąd podczas pobierania pliku";
+
+                if (error.response) {
+                    errorMessage += `: ${error.response.status} - ${error.response.statusText}`;
+                } else if (error.request) {
+                    errorMessage += ": Brak odpowiedzi z serwera";
+                } else {
+                    errorMessage += `: ${error.message}`;
+                }
+
+                setActionMessage({ type: 'error', text: errorMessage });
             });
     };
 
-    // Renderuj komponent
+    // Function to download folder as zip
+    const downloadFolder = (item: Folder) => {
+        // Display message about preparing download
+        setActionMessage({ type: 'success', text: "Przygotowywanie folderu do pobrania..." });
+
+        // // Encode the path to handle special characters
+        // const encodedPath = encodeURIComponent(item.path);
+
+        axiosInstance
+            // .get(`/nextcloud/files/${encodedPath}/download-zip`, {
+            //     responseType: 'blob'
+            // })
+            .get(`/nextcloud/files/download-zip`,  {
+                params: {
+                    file:item.path,
+                },
+                responseType: 'blob'
+            })
+            .then(response => {
+                // Create a download link for the zip file
+                const url = window.URL.createObjectURL(new Blob([response.data]));
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', `${item.name}.zip`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                // Clear message after successful download
+                setTimeout(() => {
+                    setActionMessage(null);
+                }, 3000);
+            })
+            .catch(error => {
+                console.error("Error downloading folder:", error);
+                setActionMessage({ type: 'error', text: "Błąd podczas pobierania folderu" });
+            });
+    };
+
+    // Function to toggle view mode (grid/list) with localStorage save
+    const toggleViewMode = () => {
+        const newViewMode = viewMode === "grid" ? "list" : "grid";
+        setViewMode(newViewMode);
+        // Save user preference in localStorage
+        localStorage.setItem('folderViewMode', newViewMode);
+    };
+
+    // NEW FEATURE: Multi-selection functions
+    // Function to toggle selection mode
+    const toggleSelectionMode = () => {
+        // Clear selections when exiting selection mode
+        if (selectionMode) {
+            setSelectedItems(new Set());
+        }
+        setSelectionMode(!selectionMode);
+    };
+
+    // Function to handle item selection
+    const toggleItemSelection = (itemPath: string, event: React.MouseEvent) => {
+        event.stopPropagation(); // Prevent other click handlers
+
+        setSelectedItems(prevSelectedItems => {
+            const newSelectedItems = new Set(prevSelectedItems);
+            if (newSelectedItems.has(itemPath)) {
+                newSelectedItems.delete(itemPath);
+            } else {
+                newSelectedItems.add(itemPath);
+            }
+            return newSelectedItems;
+        });
+    };
+
+    // Function to select all items
+    const selectAllItems = () => {
+        const displayedItems = filterAndSortItems();
+
+        if (selectedItems.size === displayedItems.length) {
+            // If all are selected, deselect all
+            setSelectedItems(new Set());
+        } else {
+            // Otherwise, select all
+            const allPaths = new Set(displayedItems.map(item => item.path));
+            setSelectedItems(allPaths);
+        }
+    };
+
+    // Function to download all selected items
+    const downloadSelectedItems = () => {
+        // If only one item is selected, download it directly
+        if (selectedItems.size === 1) {
+            const itemPath = Array.from(selectedItems)[0];
+            const item = items.find(i => i.path === itemPath);
+            if (item) {
+                if (item.isDirectory) {
+                    downloadFolder(item);
+                } else {
+                    downloadFile(item);
+                }
+            }
+            return;
+        }
+
+        // For multiple items, inform the user
+        setActionMessage({
+            type: 'success',
+            text: `Przygotowywanie ${selectedItems.size} elementów do pobrania...`
+        });
+
+        // Download items one by one
+        const selectedItemsList = filterAndSortItems().filter(item =>
+            selectedItems.has(item.path)
+        );
+
+        // Download each item with a delay to avoid browser limitations
+        selectedItemsList.forEach((item, index) => {
+            setTimeout(() => {
+                if (item.isDirectory) {
+                    downloadFolder(item);
+                } else {
+                    downloadFile(item);
+                }
+            }, index * 1000); // 1 second delay between downloads
+        });
+    };
+
+    // Function to delete all selected items
+    const deleteSelectedItems = () => {
+        if (!window.confirm(`Czy na pewno chcesz usunąć ${selectedItems.size} wybranych elementów?`)) {
+            return;
+        }
+
+        const selectedItemsList = filterAndSortItems().filter(item =>
+            selectedItems.has(item.path)
+        );
+
+        setActionMessage({
+            type: 'success',
+            text: `Usuwanie ${selectedItems.size} elementów...`
+        });
+
+        // Delete each item with a delay
+        let deletedCount = 0;
+        let errorCount = 0;
+
+        selectedItemsList.forEach((item, index) => {
+            setTimeout(() => {
+                // Encode the path to handle special characters
+                const encodedPath = encodeURIComponent(item.path);
+
+                axiosInstance
+                    .delete(`/nextcloud/files`,  {params:{
+                            file:item.path,
+                        }})
+                    .then(() => {
+                        deletedCount++;
+                        // Remove from state
+                        setAllItems(prev => prev.filter(i => i.path !== item.path));
+                        setItems(prev => prev.filter(i => i.path !== item.path));
+
+                        // Update message on completion
+                        if (deletedCount + errorCount === selectedItems.size) {
+                            if (errorCount > 0) {
+                                setActionMessage({
+                                    type: 'error',
+                                    text: `Usunięto ${deletedCount} z ${selectedItems.size} elementów. ${errorCount} błędów.`
+                                });
+                            } else {
+                                setActionMessage({
+                                    type: 'success',
+                                    text: `Usunięto pomyślnie ${deletedCount} elementów.`
+                                });
+                                // Clear selections
+                                setSelectedItems(new Set());
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        errorCount++;
+                        console.error(`Error deleting item ${item.path}:`, error);
+
+                        // Update message on completion
+                        if (deletedCount + errorCount === selectedItems.size) {
+                            setActionMessage({
+                                type: 'error',
+                                text: `Usunięto ${deletedCount} z ${selectedItems.size} elementów. ${errorCount} błędów.`
+                            });
+                        }
+                    });
+            }, index * 300); // 300ms delay between delete operations
+        });
+    };
+
+    // Render component
     return (
         <div className="product-grid-container">
-            {/* Pasek filtrów */}
+            {/* Top toolbar */}
             <div className="filter-controls">
+                {/* Show current folder toggle - visible only when not in global search */}
+                {!isGlobalSearch && (
+                    <div className="toggle-container">
+                        <label className="toggle-switch">
+                            <input
+                                type="checkbox"
+                                checked={showCurrentFolder}
+                                onChange={() => {
+                                    setShowCurrentFolder(!showCurrentFolder);
+                                    // Immediate application of change
+                                    handleToggleCurrentFolder(!showCurrentFolder);
+                                }}
+                            />
+                            <span className="slider"></span>
+                        </label>
+                        <span className="toggle-label">Pokaż bieżący folder</span>
+                    </div>
+                )}
+
+                {/* Search results header - visible only in global search mode */}
+                {isGlobalSearch && searchTerm && (
+                    <div className="search-results-header">
+                        <h3>Wyniki wyszukiwania dla: "{searchTerm}"</h3>
+                        <span className="results-count">Znaleziono elementów: {searchResults.length}</span>
+                    </div>
+                )}
+
+                {/* Sort dropdown - always visible */}
                 <div className="sort-dropdown">
-                    <span>Sortuj: </span>
-                    <button
-                        className={`sort-btn ${sortOrder === "newest" ? "active" : ""}`}
-                        onClick={() => setSortOrder("newest")}
+                    <div
+                        className="sort-dropdown-header"
+                        onClick={() => setShowSortDropdown(!showSortDropdown)}
                     >
-                        Najnowszych
-                    </button>
-                </div>
-                <div className="season-filter">
-                    <button
-                        className={`season-btn ${currentSeason === "2025" ? "active" : ""}`}
-                        onClick={() => setCurrentSeason("2025")}
-                    >
-                        Sezon: 2025
-                    </button>
+                        <span>Sortuj: {sortOptions.find(option => option.value === sortOrder)?.label}</span>
+                        <span className="dropdown-arrow">{showSortDropdown ? '▲' : '▼'}</span>
+                    </div>
+                    {showSortDropdown && (
+                        <div className="sort-dropdown-content">
+                            {sortOptions.map(option => (
+                                <div
+                                    key={option.value}
+                                    className={`sort-option ${sortOrder === option.value ? 'active' : ''}`}
+                                    onClick={() => {
+                                        setSortOrder(option.value);
+                                        setShowSortDropdown(false);
+                                    }}
+                                >
+                                    {option.label}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
-                {/* Przyciski akcji dla administratora */}
-                {userRole === 'ADMIN' && (
-                    <div className="admin-actions">
+                {/* Clear search button - visible only in global search mode */}
+                {isGlobalSearch && (
+                    <button
+                        className="clear-search-btn"
+                        onClick={() => {
+                            // Reset search and return to normal view
+                            window.location.href = parentFolderId ? `/dashboard?folder=${parentFolderId}` : '/dashboard';
+                        }}
+                    >
+                        Wyczyść wyszukiwanie
+                    </button>
+                )}
+
+                {/* Action buttons - visible only for admin and not in global search mode */}
+                {isAdmin && !isGlobalSearch && (
+                    <div className="action-buttons">
                         <button
-                            className="admin-btn"
+                            className="action-btn new-folder-btn"
                             onClick={() => setShowCreateFolderModal(true)}
                         >
                             Nowy folder
                         </button>
                         <button
-                            className="admin-btn"
+                            className="action-btn upload-btn"
                             onClick={() => setShowUploadModal(true)}
                         >
                             Dodaj plik
                         </button>
                     </div>
                 )}
+
+                {/* View mode toggle (grid/list) */}
+                <div className="view-mode-toggle">
+                    <button
+                        className={`view-mode-btn ${viewMode === "grid" ? "active" : ""}`}
+                        onClick={toggleViewMode}
+                        title={viewMode === "grid" ? "Przełącz na widok listy" : "Przełącz na widok kafelków"}
+                    >
+                        {viewMode === "grid" ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="8" y1="6" x2="21" y2="6"></line>
+                                <line x1="8" y1="12" x2="21" y2="12"></line>
+                                <line x1="8" y1="18" x2="21" y2="18"></line>
+                                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                            </svg>
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="14" width="7" height="7"></rect>
+                                <rect x="3" y="14" width="7" height="7"></rect>
+                            </svg>
+                        )}
+                    </button>
+
+                    {/* NEW FEATURE: Selection mode toggle button */}
+                    <button
+                        className={`select-mode-btn ${selectionMode ? "active" : ""}`}
+                        onClick={toggleSelectionMode}
+                        title={selectionMode ? "Wyłącz tryb zaznaczania" : "Włącz tryb zaznaczania"}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            {selectionMode && <polyline points="9 11 12 14 22 4"></polyline>}
+                        </svg>
+                    </button>
+                </div>
             </div>
 
-            {/* Komunikat o akcji */}
+            {/* NEW FEATURE: Selection toolbar */}
+            {selectionMode && (
+                <div className="selection-toolbar">
+                    <button
+                        className="select-all-btn"
+                        onClick={selectAllItems}
+                    >
+                        {selectedItems.size === filterAndSortItems().length
+                            ? "Odznacz wszystkie"
+                            : "Zaznacz wszystkie"}
+                    </button>
+                    <span className="selection-count">
+                        Zaznaczono: {selectedItems.size}
+                    </span>
+                    {selectedItems.size > 0 && (
+                        <>
+                            <button
+                                className="download-selected-btn"
+                                onClick={downloadSelectedItems}
+                            >
+                                {selectedItems.size === 1 ? "Pobierz plik" : "Pobierz wszystkie"}
+                            </button>
+                            {isAdmin && (
+                                <button
+                                    className="delete-selected-btn"
+                                    onClick={deleteSelectedItems}
+                                >
+                                    {selectedItems.size === 1 ? "Usuń element" : "Usuń wybrane"}
+                                </button>
+                            )}
+                        </>
+                    )}
+                </div>
+            )}
+
+            {/* Action message */}
             {actionMessage && (
                 <div className={`action-message ${actionMessage.type}`}>
                     {actionMessage.text}
@@ -225,80 +948,271 @@ const FolderGrid: React.FC<FolderGridProps> = ({ parentFolderId, userRole }) => 
                 </div>
             )}
 
-            {/* Ładowanie */}
+            {/* Loading */}
             {loading && <div className="loading">Ładowanie zawartości...</div>}
 
-            {/* Błąd */}
+            {/* Error */}
             {error && <div className="error">{error}</div>}
 
-            {/* Brak folderu */}
-            {!parentFolderId && !loading && !error && (
+            {/* No folder selected */}
+            {!parentFolderId && !isGlobalSearch && !loading && !error && (
                 <div className="no-folder-selected">
                     <p>Wybierz folder z panelu po lewej stronie</p>
                 </div>
             )}
 
-            {/* Siatka plików i folderów w stylu produktów */}
-            {parentFolderId && !loading && !error && (
-                <div className="product-grid">
-                    {items.length === 0 ? (
-                        <div className="empty-folder">
-                            <p>Ten folder jest pusty</p>
-                        </div>
-                    ) : (
-                        items.map((item) => (
-                            <div key={item.path} className="product-card">
-                                <div className="product-image">
-                                    {item.isDirectory ? (
-                                        <img src="/placeholder-folder.png" alt="Folder" className="folder-img" />
-                                    ) : (
-                                        <img src="/placeholder-image.png" alt="Product" />
-                                    )}
-                                </div>
-                                <div className="product-details">
-                                    <h3 className="product-name">
-                                        {item.name}
-                                    </h3>
-                                    <div className="product-sku-list">
-                                        {item.isDirectory ? (
-                                            <p>Folder</p>
-                                        ) : (
-                                            <p>Plik</p>
-                                        )}
+            {/* Container with file grid and custom scrollbar */}
+            {(parentFolderId || isGlobalSearch) && !loading && !error && (
+                <div className="product-grid-scroll-container">
+                    {/* Scroll area with grid */}
+                    <div
+                        className="product-grid-scroll-area"
+                        ref={scrollAreaRef}
+                        onScroll={handleScrollAreaScroll}
+                    >
+                        {viewMode === "grid" ? (
+                            // Grid view
+                            <div className="product-grid">
+                                {filterAndSortItems().length === 0 ? (
+                                    <div className="empty-folder">
+                                        <p>{isGlobalSearch ? "Nie znaleziono wyników wyszukiwania" : (searchTerm ? "Nie znaleziono pasujących elementów" : "Ten folder jest pusty")}</p>
                                     </div>
-                                    <div className="product-actions">
-                                        {item.isDirectory ? (
-                                            <button
-                                                className="btn-open"
-                                                onClick={() => window.location.href = `/dashboard?folder=${item.path}`}
-                                            >
-                                                Otwórz
-                                            </button>
-                                        ) : (
-                                            <button
-                                                className="btn-download"
-                                                onClick={() => downloadFile(item)}
-                                            >
-                                                Pobierz
-                                            </button>
-                                        )}
-                                        {(userRole === 'ADMIN' || item.canDelete) && (
-                                            <button
-                                                className="btn-delete"
-                                                onClick={() => deleteItem(item)}
-                                            >
-                                                Usuń
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
+                                ) : (
+                                    filterAndSortItems().map((item) => (
+                                        <div
+                                            key={item.path}
+                                            className={`product-card ${selectedItems.has(item.path) ? 'selected' : ''}`}
+                                        >
+                                            {/* NEW FEATURE: Selection checkbox in grid view */}
+                                            {selectionMode && (
+                                                <div className="checkbox-container" onClick={(e) => toggleItemSelection(item.path, e)}>
+                                                    <input
+                                                        type="checkbox"
+                                                        className="item-checkbox"
+                                                        checked={selectedItems.has(item.path)}
+                                                        onChange={() => {}} // Handling in onClick of container
+                                                    />
+                                                </div>
+                                            )}
+                                            <div className="product-image">
+                                                {item.isDirectory ? (
+                                                    <img src="/placeholder-folder.png" alt="Folder" className="folder-img" />
+                                                ) : (
+                                                    <img src="/placeholder-image.png" alt="Product" />
+                                                )}
+                                            </div>
+                                            <div className="product-details">
+                                                <h3 className="product-name">
+                                                    {item.name}
+                                                </h3>
+                                                <div className="product-sku-list">
+                                                    {item.isDirectory ? (
+                                                        item.isProductFolder ? (
+                                                            <p>Produkt</p>
+                                                        ) : (
+                                                            <p>Folder</p>
+                                                        )
+                                                    ) : (
+                                                        <p>Plik</p>
+                                                    )}
+                                                </div>
+                                                <div className="product-actions">
+                                                    {item.isDirectory ? (
+                                                        // For folders
+                                                        <>
+                                                            <button
+                                                                className="btn-open"
+                                                                onClick={() => {
+                                                                    // Jeśli to folder produktowy (i NIE jest oznaczony jako mający dzieci-produkty)
+                                                                    if (item.isProductFolder && !item.hasChildrenAsProducts) {
+                                                                        console.log("This is a product folder, showing product card");
+                                                                        setSelectedProductFolder(item.path);
+                                                                    } else {
+                                                                        // W przeciwnym razie przejdź do folderu (normalny folder lub folder z dziećmi-produktami)
+                                                                        window.location.href = `/dashboard?folder=${item.path}`;
+                                                                    }
+                                                                }}
+                                                            >
+                                                                {item.isProductFolder && !item.hasChildrenAsProducts ? "Pokaż produkt" : "Otwórz"}
+                                                            </button>
+                                                            <button
+                                                                className="btn-download"
+                                                                onClick={() => downloadFolder(item)}
+                                                            >
+                                                                Pobierz
+                                                            </button>
+                                                            {isAdmin && (
+                                                                <button
+                                                                    className="btn-delete"
+                                                                    onClick={() => deleteItem(item)}
+                                                                >
+                                                                    Usuń
+                                                                </button>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        // For files
+                                                        <>
+                                                            <button
+                                                                className="btn-download"
+                                                                onClick={() => downloadFile(item)}
+                                                            >
+                                                                Pobierz
+                                                            </button>
+                                                            {isAdmin && (
+                                                                <button
+                                                                    className="btn-delete"
+                                                                    onClick={() => deleteItem(item)}
+                                                                >
+                                                                    Usuń
+                                                                </button>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
                             </div>
-                        ))
-                    )}
+                        ) : (
+                            // List view
+                            <div className="product-list">
+                                {filterAndSortItems().length === 0 ? (
+                                    <div className="empty-folder">
+                                        <p>{isGlobalSearch ? "Nie znaleziono wyników wyszukiwania" : (searchTerm ? "Nie znaleziono pasujących elementów" : "Ten folder jest pusty")}</p>
+                                    </div>
+                                ) : (
+                                    <table className="list-view-table">
+                                        <tbody>
+                                        {filterAndSortItems().map((item) => (
+                                            <tr
+                                                key={item.path}
+                                                className={`list-item ${selectedItems.has(item.path) ? 'selected' : ''}`}
+                                            >
+                                                {/* NEW FEATURE: Selection checkbox in list view */}
+                                                {selectionMode && (
+                                                    <td
+                                                        className="list-item-checkbox"
+                                                        onClick={(e) => toggleItemSelection(item.path, e)}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            className="item-checkbox"
+                                                            checked={selectedItems.has(item.path)}
+                                                            onChange={() => {}} // Handling in onClick of container
+                                                        />
+                                                    </td>
+                                                )}
+                                                <td className="list-item-icon">
+                                                    {item.isDirectory ? (
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                                                        </svg>
+                                                    ) : (
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                            <polyline points="14 2 14 8 20 8"></polyline>
+                                                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                                                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                                                            <polyline points="10 9 9 9 8 9"></polyline>
+                                                        </svg>
+                                                    )}
+                                                </td>
+                                                <td className="list-item-name">{item.name}</td>
+                                                <td className="list-item-type">{item.isDirectory ? (
+                                                    item.isProductFolder ? "Produkt" : "Folder"
+                                                ) : "Plik"}
+                                                </td>
+                                                <td className="list-item-actions">
+                                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '5px' }}>
+                                                        {item.isDirectory ? (
+                                                            // For folders
+                                                            <>
+                                                                <button
+                                                                    className="btn-open list-btn"
+                                                                    onClick={() => {
+                                                                        if (item.isDirectory) {
+                                                                            setSelectedProductFolder(item.path);
+                                                                        } else {
+                                                                            // Direct redirect with page reload
+                                                                            window.location.href = `/dashboard?folder=${item.path}`;
+                                                                        }
+                                                                    }}
+                                                                    style={{ display: 'inline-block' }}
+                                                                >
+                                                                    Otwórz
+                                                                </button>
+                                                                <button
+                                                                    className="btn-download list-btn"
+                                                                    onClick={() => downloadFolder(item)}
+                                                                    style={{ display: 'inline-block' }}
+                                                                >
+                                                                    Pobierz
+                                                                </button>
+                                                                {isAdmin && (
+                                                                    <button
+                                                                        className="btn-delete list-btn"
+                                                                        onClick={() => deleteItem(item)}
+                                                                        style={{ display: 'inline-block' }}
+                                                                    >
+                                                                        Usuń
+                                                                    </button>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            // For files
+                                                            <>
+                                                                <button
+                                                                    className="btn-download list-btn"
+                                                                    onClick={() => downloadFile(item)}
+                                                                    style={{ display: 'inline-block' }}
+                                                                >
+                                                                    Pobierz
+                                                                </button>
+                                                                {isAdmin && (
+                                                                    <button
+                                                                        className="btn-delete list-btn"
+                                                                        onClick={() => deleteItem(item)}
+                                                                        style={{ display: 'inline-block' }}
+                                                                    >
+                                                                        Usuń
+                                                                    </button>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Custom scrollbar */}
+                    <div
+                        className="custom-scrollbar"
+                        ref={scrollTrackRef}
+                        onClick={handleTrackClick}
+                    >
+                        <div className="scrollbar-track"></div>
+                        <div
+                            className="scrollbar-thumb"
+                            ref={scrollThumbRef}
+                            style={{
+                                height: `${thumbHeight}px`,
+                                top: `${thumbTop}px`
+                            }}
+                            onMouseDown={handleThumbMouseDown}
+                        ></div>
+                    </div>
                 </div>
             )}
 
-            {/* Modal do tworzenia folderu */}
+            {/* Create folder modal */}
             {showCreateFolderModal && (
                 <div className="modal">
                     <div className="modal-content">
@@ -319,8 +1233,13 @@ const FolderGrid: React.FC<FolderGridProps> = ({ parentFolderId, userRole }) => 
                     </div>
                 </div>
             )}
-
-            {/* Modal do przesyłania plików */}
+            {selectedProductFolder && (
+                <ProductCard
+                    folderPath={selectedProductFolder}
+                    onClose={() => setSelectedProductFolder(null)}
+                />
+            )}
+            {/* Upload file modal */}
             {showUploadModal && (
                 <div className="modal">
                     <div className="modal-content">

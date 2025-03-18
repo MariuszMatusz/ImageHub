@@ -28,9 +28,12 @@ public class UserService {
     }
 
     public User save(User user) {
+        // Sprawdź, czy użytkownik o podanym email już istnieje
+        Optional<User> existingUserWithEmail = userRepository.findByEmail(user.getEmail());
 
-        // Sprawdzenie, czy użytkownik o podanym email już istnieje
-        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+        // Jeśli znaleziono użytkownika z takim samym mailem i to nie jest ten sam użytkownik (różne ID)
+        if (existingUserWithEmail.isPresent() &&
+                (user.getId() == null || !existingUserWithEmail.get().getId().equals(user.getId()))) {
             throw new IllegalArgumentException("User with this email already exists!");
         }
 
@@ -39,12 +42,13 @@ public class UserService {
             user.setRole(Role.USER);
         }
 
-        // Hashowanie hasła przed zapisaniem
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        // Hashowanie hasła przed zapisaniem (tylko jeśli nie jest już zahashowane)
+        if (user.getPassword() != null && !user.getPassword().startsWith("$2a$")) {
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
+        }
 
         return userRepository.save(user);
     }
-
     public void deleteById(Long id) {
         userRepository.deleteById(id);
     }

@@ -45,4 +45,14 @@ public interface FolderPermissionRepository extends JpaRepository<FolderPermissi
             "(:folderPath LIKE CONCAT(fp.folderPath, '/%') OR :folderPath = fp.folderPath) AND " +
             "(fp.includeSubfolders = true OR :folderPath = fp.folderPath)")
     boolean hasDeletePermission(@Param("user") User user, @Param("folderPath") String folderPath);
+
+    // Znajdź wszystkie uprawnienia dla danego folderu
+    List<FolderPermission> findByFolderPath(String folderPath);
+
+    // Sprawdź czy istnieje uprawnienie dla danego folderu z określonym typem
+    boolean existsByFolderPathAndPermissionType(String folderPath, String permissionType);
+
+    // Znajdź wszystkie uprawnienia określonego typu
+    List<FolderPermission> findByPermissionType(String permissionType);
+
 }

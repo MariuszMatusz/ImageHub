@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -142,4 +143,84 @@ public class FolderPermissionController {
                     .body("Error removing folder permission: " + e.getMessage());
         }
     }
+
+    // Add a new endpoint to FolderPermissionController
+    @PostMapping("/product-folder")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> setProductFolder(
+            @RequestParam String folderPath,
+            @RequestParam boolean isProductFolder) {
+        try {
+            logger.info("Setting folder {} as product folder: {}", folderPath, isProductFolder);
+
+            // Get permissions for this folder
+            List<FolderPermission> permissions = folderPermissionService.getPermissionsForFolder(folderPath);
+
+            // Update permission type for all users who have access to this folder
+            for (FolderPermission permission : permissions) {
+                permission.setPermissionType(isProductFolder ? "PRODUCT" : "STANDARD");
+                folderPermissionService.savePermission(permission);
+            }
+
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            logger.error("Error setting product folder: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error setting product folder: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get list of folders marked as products
+     */
+    @GetMapping("/product-folders")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<String>> getProductFolders() {
+        try {
+            List<String> productFolders = folderPermissionService.getProductFolders();
+            return ResponseEntity.ok(productFolders);
+        } catch (Exception e) {
+            logger.error("Error getting product folders: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @PostMapping("/product-children-folder")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> setProductChildrenFolder(
+            @RequestParam String folderPath,
+            @RequestParam boolean hasChildrenAsProducts) {
+        try {
+            logger.info("Setting folder {} as folder with product children: {}", folderPath, hasChildrenAsProducts);
+
+            // Get permissions for this folder
+            List<FolderPermission> permissions = folderPermissionService.getPermissionsForFolder(folderPath);
+
+            // If no permissions exist, create a default one
+            if (permissions.isEmpty()) {
+                // Create a new permission for the current user
+                User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+                FolderPermission permission = new FolderPermission(
+                        folderPath, currentUser, true, true, true, false,
+                        hasChildrenAsProducts ? "CHILDREN_AS_PRODUCTS" : "STANDARD"
+                );
+                folderPermissionService.savePermission(permission);
+            } else {
+                // Update existing permissions
+                for (FolderPermission permission : permissions) {
+                    permission.setPermissionType(
+                            hasChildrenAsProducts ? "CHILDREN_AS_PRODUCTS" : "STANDARD"
+                    );
+                    folderPermissionService.savePermission(permission);
+                }
+            }
+
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            logger.error("Error setting product children folder: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error setting product children folder: " + e.getMessage());
+        }
+    }
+
 }

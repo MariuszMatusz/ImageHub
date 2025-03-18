@@ -38,9 +38,10 @@ public class JwtFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        logger.info("🔹 JwtFilter executed for request: {}", request.getRequestURI());
-        System.out.println("JwtFilter executed for request: " + request.getRequestURI());
+        // Usunąłem tę sekcję, ponieważ jest ona teraz obsługiwana przez CorsPreflightFilter
+        // i konfigurację SecurityConfig z explicit permitAll dla OPTIONS
 
+        logger.debug("🔹 JwtFilter executed for request: {} [{}]", request.getRequestURI(), request.getMethod());
 
         String authorizationHeader = request.getHeader("Authorization");
 
@@ -52,7 +53,12 @@ public class JwtFilter extends OncePerRequestFilter {
             try {
                 email = jwtUtil.extractUsername(jwt);
             } catch (ExpiredJwtException e) {
+                logger.warn("🔹 Token expired for request: {}", request.getRequestURI());
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token expired");
+                return;
+            } catch (Exception e) {
+                logger.error("🔹 JWT validation error: {}", e.getMessage());
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
                 return;
             }
         }
@@ -62,25 +68,20 @@ public class JwtFilter extends OncePerRequestFilter {
 
             if (userOptional.isPresent() && jwtUtil.validateToken(jwt, email)) {
                 User user = userOptional.get();
-                Role role = jwtUtil.extractRole(jwt);  // Pobieramy rolę jako ENUM
+                Role role = jwtUtil.extractRole(jwt);
 
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         user,
                         null,
-                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role.name())) //  Konwersja ENUM na String
-
+                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role.name()))
                 );
-                logger.info("🔹 Authorization header: {}", request.getHeader("Authorization"));
-                System.out.println("JwtFilter executed for request: " + request.getRequestURI());
-                logger.info("🔹 Extracted role from token: {}", role);
+
+                logger.debug("🔹 Extracted role from token: {}", role);
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-                logger.info("🔹 Security context set with user: {}", SecurityContextHolder.getContext().getAuthentication());
-                logger.info("🔹 Final SecurityContextHolder: {}", SecurityContextHolder.getContext().getAuthentication());
-
+                logger.debug("🔹 Security context set with user: {}", user.getUsername());
             }
         }
-
 
         chain.doFilter(request, response);
     }
