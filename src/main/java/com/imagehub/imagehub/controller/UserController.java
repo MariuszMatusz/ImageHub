@@ -1,7 +1,8 @@
 package com.imagehub.imagehub.controller;
 
-import com.imagehub.imagehub.model.Role;  // Importujemy enum dla użycia w zwykłym kodzie
+import com.imagehub.imagehub.model.Role;
 import com.imagehub.imagehub.model.User;
+import com.imagehub.imagehub.service.RoleService;
 import com.imagehub.imagehub.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -23,29 +24,39 @@ public class UserController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private RoleService roleService;
+
     // ADMIN: Pobranie listy wszystkich użytkowników
-    @PreAuthorize("hasRole(T(com.imagehub.imagehub.model.Role).ADMIN.name())")
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<List<User>> getAllUsers() {
         return ResponseEntity.ok(userService.findAll());
     }
 
-    // ADMIN: Pobranie użytkowników według roli (automatyczna konwersja URL na enum)
-    @PreAuthorize("hasRole(T(com.imagehub.imagehub.model.Role).ADMIN.name())")
-    @GetMapping("/role/{role}")
-    public ResponseEntity<List<User>> getUsersByRole(@PathVariable("role") Role role) {
-        return ResponseEntity.ok(userService.findByRole(role));
+    // ADMIN: Pobranie użytkowników według roli (teraz przyjmuje nazwę roli jako String)
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/role/{roleName}")
+    public ResponseEntity<?> getUsersByRole(@PathVariable("roleName") String roleName) {
+        Optional<Role> roleOpt = roleService.findByName(roleName);
+
+        if (roleOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Role not found: " + roleName);
+        }
+
+        return ResponseEntity.ok(userService.findByRole(roleOpt.get()));
     }
 
     // USER/ADMIN: Pobranie danych aktualnie zalogowanego użytkownika
-    @PreAuthorize("hasAnyRole(T(com.imagehub.imagehub.model.Role).USER.name(), T(com.imagehub.imagehub.model.Role).ADMIN.name())")
+//    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<User> getCurrentUser(@AuthenticationPrincipal User currentUser) {
         return ResponseEntity.ok(currentUser);
     }
 
     // ADMIN: Pobranie danych użytkownika po ID
-    @PreAuthorize("hasRole(T(com.imagehub.imagehub.model.Role).ADMIN.name())")
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<User> getUserById(@PathVariable Long id) {
         Optional<User> requestedUserOpt = userService.findById(id);
@@ -56,7 +67,7 @@ public class UserController {
     }
 
     // ADMIN: Tworzenie nowego użytkownika
-    @PreAuthorize("hasRole(T(com.imagehub.imagehub.model.Role).ADMIN.name())")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<?> createUser(@Valid @RequestBody User user) {
         try {
@@ -68,7 +79,7 @@ public class UserController {
     }
 
     // ADMIN: Aktualizacja użytkownika
-    @PreAuthorize("hasRole(T(com.imagehub.imagehub.model.Role).ADMIN.name())")
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable Long id, @Valid @RequestBody User updatedUser) {
         Optional<User> existingUserOpt = userService.findById(id);
@@ -88,7 +99,7 @@ public class UserController {
     }
 
     // USER/ADMIN: Zmiana hasła dla zalogowanego użytkownika
-    @PreAuthorize("hasAnyRole(T(com.imagehub.imagehub.model.Role).USER.name(), T(com.imagehub.imagehub.model.Role).ADMIN.name())")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @PutMapping("/me/change-password")
     public ResponseEntity<?> changePassword(@AuthenticationPrincipal User currentUser,
                                             @RequestParam String oldPassword,
@@ -102,7 +113,7 @@ public class UserController {
     }
 
     // ADMIN: Usunięcie użytkownika
-    @PreAuthorize("hasRole(T(com.imagehub.imagehub.model.Role).ADMIN.name())")
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         if (userService.findById(id).isPresent()) {

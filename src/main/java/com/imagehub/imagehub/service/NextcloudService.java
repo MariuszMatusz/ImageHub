@@ -45,14 +45,6 @@ public class NextcloudService {
      * Lista plików z uwzględnieniem uprawnień użytkownika
      * z możliwością zagłębiania się w podfoldery
      */
-    /**
-     * Lista plików z uwzględnieniem uprawnień użytkownika
-     * z możliwością zagłębiania się w podfoldery
-     */
-    /**
-     * Lista plików z uwzględnieniem uprawnień użytkownika
-     * z możliwością zagłębiania się w podfoldery
-     */
     public List<Map<String, Object>> listFilesWithChildren(String path, boolean includeChildren, int depth, User currentUser) throws Exception {
         logger.info("Listing files at path: {} (includeChildren: {}, depth: {})", path, includeChildren, depth);
 
@@ -251,7 +243,7 @@ public class NextcloudService {
      */
     public List<Map<String, Object>> listAccessibleFolders(User currentUser) throws Exception {
         // Dla admina pobieramy wszystkie foldery
-        if (currentUser.getRole().name().equals("ADMIN")) {
+        if (currentUser.getRole() != null && "ADMIN".equals(currentUser.getRole().getName())) {
             return listFiles("", currentUser);
         }
 
@@ -558,7 +550,7 @@ public class NextcloudService {
 
         try {
             // Określ ścieżkę startową w zależności od roli użytkownika
-            String startPath = currentUser.getRole().name().equals("ADMIN") ? "" : "";
+            String startPath = (currentUser.getRole() != null && "ADMIN".equals(currentUser.getRole().getName())) ? "" : "";
 
             // Pobierz wszystkie pliki i foldery, rekurencyjnie przeszukując całą strukturę
             // Uwaga: Dla dużych systemów plików to może być kosztowne, warto zoptymalizować
@@ -763,5 +755,4 @@ public class NextcloudService {
 
         return productInfo;
     }
-
 }

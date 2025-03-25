@@ -2,7 +2,10 @@ package com.imagehub.imagehub.service;
 
 import com.imagehub.imagehub.model.Role;
 import com.imagehub.imagehub.model.User;
+import com.imagehub.imagehub.repository.RoleRepository;
 import com.imagehub.imagehub.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -13,8 +16,13 @@ import java.util.Optional;
 @Service
 public class UserService {
 
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
+
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private RoleRepository roleRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -39,7 +47,12 @@ public class UserService {
 
         // Przypisanie domyślnej roli USER, jeśli użytkownik jej nie podał
         if (user.getRole() == null) {
-            user.setRole(Role.USER);
+            Optional<Role> defaultUserRole = roleRepository.findByName("USER");
+            if (defaultUserRole.isEmpty()) {
+                logger.error("Domyślna rola USER nie istnieje w bazie danych");
+                throw new IllegalStateException("Default USER role not found in database");
+            }
+            user.setRole(defaultUserRole.get());
         }
 
         // Hashowanie hasła przed zapisaniem (tylko jeśli nie jest już zahashowane)
@@ -49,6 +62,7 @@ public class UserService {
 
         return userRepository.save(user);
     }
+
     public void deleteById(Long id) {
         userRepository.deleteById(id);
     }
@@ -61,6 +75,10 @@ public class UserService {
         return userRepository.findByEmail(email);
     }
 
+    public Optional<User> findByUsername(String username) {
+        return userRepository.findByUsername(username);
+    }
+
     // Dodatkowa metoda do hashowania hasła
     public String hashPassword(String password) {
         return passwordEncoder.encode(password);
@@ -69,4 +87,5 @@ public class UserService {
     // Metoda do pobierania użytkowników na podstawie roli
     public List<User> findByRole(Role role) {
         return userRepository.findByRole(role);
-    }}
+    }
+}

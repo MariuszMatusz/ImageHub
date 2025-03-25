@@ -1,7 +1,6 @@
 package com.imagehub.imagehub.service;
 
 import com.imagehub.imagehub.model.FolderPermission;
-import com.imagehub.imagehub.model.Role;
 import com.imagehub.imagehub.model.User;
 import com.imagehub.imagehub.repository.FolderPermissionRepository;
 import org.slf4j.Logger;
@@ -74,7 +73,7 @@ public class FolderPermissionService {
      */
     public boolean canUserReadFolder(User user, String folderPath) {
         // Admini mają dostęp do wszystkiego
-        if (user.getRole() == Role.ADMIN) {
+        if (user.getRole() != null && "ADMIN".equals(user.getRole().getName())) {
             return true;
         }
 
@@ -86,7 +85,7 @@ public class FolderPermissionService {
      */
     public boolean canUserWriteFolder(User user, String folderPath) {
         // Admini mają dostęp do wszystkiego
-        if (user.getRole() == Role.ADMIN) {
+        if (user.getRole() != null && "ADMIN".equals(user.getRole().getName())) {
             return true;
         }
 
@@ -98,7 +97,7 @@ public class FolderPermissionService {
      */
     public boolean canUserDeleteFolder(User user, String folderPath) {
         // Admini mają dostęp do wszystkiego
-        if (user.getRole() == Role.ADMIN) {
+        if (user.getRole() != null && "ADMIN".equals(user.getRole().getName())) {
             return true;
         }
 
@@ -183,5 +182,4 @@ public class FolderPermissionService {
 
         return false;
     }
-
 }

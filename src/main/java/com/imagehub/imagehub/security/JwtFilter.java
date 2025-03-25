@@ -1,6 +1,5 @@
 package com.imagehub.imagehub.security;
 
-import com.imagehub.imagehub.model.Role;
 import com.imagehub.imagehub.model.User;
 import com.imagehub.imagehub.service.UserService;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -38,9 +37,6 @@ public class JwtFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        // Usunąłem tę sekcję, ponieważ jest ona teraz obsługiwana przez CorsPreflightFilter
-        // i konfigurację SecurityConfig z explicit permitAll dla OPTIONS
-
         logger.debug("🔹 JwtFilter executed for request: {} [{}]", request.getRequestURI(), request.getMethod());
 
         String authorizationHeader = request.getHeader("Authorization");
@@ -68,15 +64,16 @@ public class JwtFilter extends OncePerRequestFilter {
 
             if (userOptional.isPresent() && jwtUtil.validateToken(jwt, email)) {
                 User user = userOptional.get();
-                Role role = jwtUtil.extractRole(jwt);
+                // Pobieramy rolę jako String zamiast enuma
+                String roleName = jwtUtil.extractRole(jwt);
 
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         user,
                         null,
-                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role.name()))
+                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + roleName))
                 );
 
-                logger.debug("🔹 Extracted role from token: {}", role);
+                logger.debug("🔹 Extracted role from token: {}", roleName);
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
                 logger.debug("🔹 Security context set with user: {}", user.getUsername());

@@ -1,6 +1,5 @@
 package com.imagehub.imagehub.config;
 
-import com.imagehub.imagehub.model.Role;
 import com.imagehub.imagehub.security.JwtFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +22,10 @@ public class SecurityConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
 
+    // Stałe dla ról - używamy teraz stałych ciągów znaków zamiast enumów
+    private static final String ROLE_ADMIN = "ADMIN";
+    private static final String ROLE_USER = "USER";
+
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
@@ -37,23 +40,28 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login", "/error").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/register", "/error").permitAll()
 
                         // User endpoints
                         .requestMatchers("/api/users/me").authenticated()
-                        .requestMatchers("/api/users/**").hasRole(Role.ADMIN.name())
+                        .requestMatchers("/api/users/**").hasRole(ROLE_ADMIN)
+
+                        // Role management endpoints
+                        .requestMatchers("/api/roles/**").hasRole(ROLE_ADMIN)
 
                         // Folder permissions endpoints
-                        .requestMatchers("/api/folder-permissions/my").hasAnyRole(Role.USER.name(), Role.ADMIN.name())
-                        .requestMatchers("/api/folder-permissions/**").hasRole(Role.ADMIN.name())
+                        .requestMatchers("/api/folder-permissions/my").hasAnyRole(ROLE_USER, ROLE_ADMIN)
+                        .requestMatchers("/api/folder-permissions/**").hasRole(ROLE_ADMIN)
 
                         // Nextcloud API endpoints - teraz każdy z użytkowników ma dostęp zgodnie z uprawnieniami
-                        .requestMatchers(HttpMethod.GET, "/api/nextcloud/files").hasAnyRole(Role.USER.name(), Role.ADMIN.name())
-                        .requestMatchers(HttpMethod.GET, "/api/nextcloud/my-folders").hasAnyRole(Role.USER.name(), Role.ADMIN.name())
-                        .requestMatchers(HttpMethod.GET, "/api/nextcloud/files/**").hasAnyRole(Role.USER.name(), Role.ADMIN.name())
-                        .requestMatchers(HttpMethod.POST, "/api/nextcloud/upload").hasAnyRole(Role.USER.name(), Role.ADMIN.name())
-                        .requestMatchers(HttpMethod.POST, "/api/nextcloud/directory").hasAnyRole(Role.USER.name(), Role.ADMIN.name())
-                        .requestMatchers(HttpMethod.DELETE, "/api/nextcloud/files/**").hasAnyRole(Role.USER.name(), Role.ADMIN.name())
+                        .requestMatchers(HttpMethod.GET, "/api/nextcloud/files").authenticated()
+//                        .requestMatchers(HttpMethod.GET, "/api/nextcloud/files").hasAnyRole(ROLE_USER, ROLE_ADMIN)
+//                        .requestMatchers(HttpMethod.GET, "/api/nextcloud/my-folders").hasAnyRole(ROLE_USER, ROLE_ADMIN)
+                        .requestMatchers(HttpMethod.GET, "/api/nextcloud/my-folders").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/nextcloud/files/**").hasAnyRole(ROLE_USER, ROLE_ADMIN)
+                        .requestMatchers(HttpMethod.POST, "/api/nextcloud/upload").hasAnyRole(ROLE_USER, ROLE_ADMIN)
+                        .requestMatchers(HttpMethod.POST, "/api/nextcloud/directory").hasAnyRole(ROLE_USER, ROLE_ADMIN)
+                        .requestMatchers(HttpMethod.DELETE, "/api/nextcloud/files/**").hasAnyRole(ROLE_USER, ROLE_ADMIN)
 
                         .anyRequest().authenticated()
                 )

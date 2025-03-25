@@ -3,6 +3,7 @@ import "../styles/Login.css"; // Stylizacja logowania
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import "@fontsource/inter";
 import axiosInstance from "../utils/axiosInstance";
+import {mapToLocalStorage} from "../utils/localStorageHelper";
 
 const Login: React.FC = () => {
     const [email, setEmail] = useState("");
@@ -30,20 +31,35 @@ const Login: React.FC = () => {
         localStorage.removeItem("token");
         try {
             console.log("Wysyłam login do backendu:", email, password);
-            const response = await axiosInstance.post("/auth/login", new URLSearchParams({
+            const response = await axiosInstance.post("/auth/login", {
                 email,
                 password,
-            }), {
+            }, {
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
+                    'Content-Type': 'application/json'
                 }
             });
 
             console.log("Odpowiedź backendu:", response.data);
-            // Jeśli się uda, zapisujemy dane do localStorage i przekierowujemy
+
+            // Zapisz token do localStorage
             localStorage.setItem("token", response.data.token);
-            localStorage.setItem("role", response.data.role);
-            localStorage.setItem("userId", response.data.userId);
+
+            // Zapisz rolę użytkownika jako obiekt z nazwą i pustą tablicą uprawnień
+            console.error(response.data.role)
+            localStorage.setItem("role", mapToLocalStorage(response.data.role));
+
+            // Zapisz ID użytkownika
+            localStorage.setItem("userId", response.data.id.toString());
+
+            // Opcjonalnie: zapisz pełne dane użytkownika, aby nie musieć korzystać z endpointu /users/me
+            localStorage.setItem("userData", JSON.stringify({
+                id: response.data.id,
+                username: response.data.username,
+                email: response.data.email,
+                role: response.data.role
+            }));
+
             console.log("✅ Zalogowano! Token:", response.data.token);
             navigate("/dashboard");
         } catch (error: any) {

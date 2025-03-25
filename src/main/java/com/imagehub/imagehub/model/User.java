@@ -10,31 +10,30 @@ import jakarta.validation.constraints.Size;
         @UniqueConstraint(columnNames = "username"),
         @UniqueConstraint(columnNames = "email")
 })
-
 public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "Username cannot be blank") // Pole nie może być puste
-    @Size(min = 3, max = 20, message = "Username must be between 3 and 20 characters") // Długość od 3 do 20 znaków
-    @Column(nullable = false, unique = true) // Ograniczenie na poziomie bazy danych
+    @NotBlank(message = "Username cannot be blank")
+    @Size(min = 3, max = 20, message = "Username must be between 3 and 20 characters")
+    @Column(nullable = false, unique = true)
     private String username;
 
     @NotBlank(message = "Password cannot be blank")
-    @Size(min = 6, message = "Password must be at least 6 characters long") // Minimalna długość hasła
+    @Size(min = 6, message = "Password must be at least 6 characters long")
     private String password;
 
-    @Email(message = "Email should be valid") // Walidacja poprawnego adresu email
+    @Email(message = "Email should be valid")
     @NotBlank(message = "Email cannot be blank")
-    @Column(nullable = false, unique = true) // Ograniczenie na poziomie bazy danych
+    @Column(nullable = false, unique = true)
     private String email;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-//    @NotBlank(message = "Role cannot be blank") // Pole nie może być puste
-    private Role role; // np. "ADMIN", "USER"
+    // Zamieniono pole typu enum na referencję do encji Role
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "role_id", nullable = false)
+    private Role role;
 
     // Konstruktor bezargumentowy
     public User() {}
@@ -87,5 +86,15 @@ public class User {
 
     public void setRole(Role role) {
         this.role = role;
+    }
+
+    // Metoda pomocnicza do sprawdzania uprawnień
+    public boolean hasPermission(String permission) {
+        return role != null && role.hasPermission(permission);
+    }
+
+    // Metoda pomocnicza do sprawdzania, czy użytkownik ma rolę o danej nazwie
+    public boolean hasRole(String roleName) {
+        return role != null && role.getName().equals(roleName);
     }
 }

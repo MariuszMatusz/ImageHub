@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import axiosInstance from "../utils/axiosInstance";
 import "../styles/FolderGrid.css";
 import ProductCard from "./ProductCard";
+import {UserPermission, UserRole} from "../pages/PermissionManagement";
 
 // Interface for folder structure from Nextcloud API
 interface Folder {
@@ -19,7 +20,7 @@ interface Folder {
 
 interface FolderGridProps {
     parentFolderId: string | null;
-    userRole: string;
+    userRole: UserRole | null;
     searchTerm?: string;
     isGlobalSearch?: boolean;
     searchResults?: Folder[];
@@ -60,7 +61,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
     const [selectionMode, setSelectionMode] = useState<boolean>(false);
 
     // Check if user is admin
-    const isAdmin = userRole === 'ADMIN';
+    const isAdmin = userRole?.name === 'ADMIN';
 
     // References for custom scrolling
     const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -82,9 +83,8 @@ const FolderGrid: React.FC<FolderGridProps> = ({
 
     // Function to load folder contents
     const loadFolderContents = (path: string | null) => {
-        console.log("loadFolderContents called with path:", path);
         if (path === null) {
-            console.log("Path is null, skipping loading");
+            console.warn("Path is null, skipping loading");
             return;
         }
 
@@ -104,9 +104,6 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                 }
             })
             .then(response => {
-                console.log("Data fetched for folder:", path);
-                console.log("Number of items fetched:", response.data.length);
-
                 // Save all items
                 const allData = response.data;
                 setAllItems(allData);
@@ -128,13 +125,13 @@ const FolderGrid: React.FC<FolderGridProps> = ({
 
     // Effect to detect parentFolderId changes and force reload
     useEffect(() => {
-        console.log("useEffect [parentFolderId] triggered");
-        console.log("Previous parentFolderId:", previousParentFolderIdRef.current);
-        console.log("Current parentFolderId:", parentFolderId);
+        // console.log("useEffect [parentFolderId] triggered");
+        // console.log("Previous parentFolderId:", previousParentFolderIdRef.current);
+        // console.log("Current parentFolderId:", parentFolderId);
 
         // In global search mode, don't load folder contents
         if (isGlobalSearch) {
-            console.log("Global search mode, skipping folder loading");
+            // console.log("Global search mode, skipping folder loading");
             setItems(searchResults);
             setLoading(false);
             return;
@@ -142,7 +139,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
 
         // Check if parentFolderId actually changed
         if (parentFolderId !== previousParentFolderIdRef.current) {
-            console.log("Detected actual parentFolderId change, reloading data");
+            // console.log("Detected actual parentFolderId change, reloading data");
 
             // Clear items and allItems to show we're loading new content
             setItems([]);
@@ -159,7 +156,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
             // Update reference to previous value
             previousParentFolderIdRef.current = parentFolderId;
         } else {
-            console.log("parentFolderId didn't change, skipping reload");
+            // console.log("parentFolderId didn't change, skipping reload");
         }
     }, [parentFolderId, isGlobalSearch, searchResults]);
 
@@ -173,11 +170,11 @@ const FolderGrid: React.FC<FolderGridProps> = ({
 
     // Effect that runs only once on component mount
     useEffect(() => {
-        console.log("FolderGrid - initial component initialization");
-        console.log("Initial parentFolderId:", parentFolderId);
+        // console.log("FolderGrid - initial component initialization");
+        // console.log("Initial parentFolderId:", parentFolderId);
 
         if (parentFolderId !== null && !isGlobalSearch) {
-            console.log("Initial loading of folder contents:", parentFolderId);
+            // console.log("Initial loading of folder contents:", parentFolderId);
             loadFolderContents(parentFolderId);
         }
 
@@ -186,9 +183,9 @@ const FolderGrid: React.FC<FolderGridProps> = ({
 
     // Effect to observe showCurrentFolder changes - update display
     useEffect(() => {
-        console.log("useEffect [showCurrentFolder, allItems] triggered");
-        console.log("showCurrentFolder:", showCurrentFolder);
-        console.log("allItems.length:", allItems.length);
+        // console.log("useEffect [showCurrentFolder, allItems] triggered");
+        // console.log("showCurrentFolder:", showCurrentFolder);
+        // console.log("allItems.length:", allItems.length);
 
         if (allItems.length > 0 && !isGlobalSearch) {
             handleToggleCurrentFolder(showCurrentFolder);
@@ -775,6 +772,20 @@ const FolderGrid: React.FC<FolderGridProps> = ({
         });
     };
 
+    const hasDelete = (permissions: UserPermission, item: any): boolean => {
+        console.log(item)
+        if (isAdmin || item.canDelete) {
+            return true;
+        }
+        try {
+            // jeżeli użyttkownik ma odpowiednie role do usuwania lub folder ma odpowiednie role do usuwania
+            return userRole?.permissions?.includes(permissions) as boolean;
+        } catch (e) {
+            console.error("No permissions for this folder or user");
+            return false;
+        }
+    }
+
     // Render component
     return (
         <div className="product-grid-container">
@@ -927,7 +938,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                             >
                                 {selectedItems.size === 1 ? "Pobierz plik" : "Pobierz wszystkie"}
                             </button>
-                            {isAdmin && (
+                            {hasDelete("files_delete", null) && ( // TODO wróć tutaj i coś wymyśl
                                 <button
                                     className="delete-selected-btn"
                                     onClick={deleteSelectedItems}
@@ -1041,7 +1052,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                                             >
                                                                 Pobierz
                                                             </button>
-                                                            {isAdmin && (
+                                                            {hasDelete("files_delete", item) && (
                                                                 <button
                                                                     className="btn-delete"
                                                                     onClick={() => deleteItem(item)}
@@ -1059,7 +1070,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                                             >
                                                                 Pobierz
                                                             </button>
-                                                            {isAdmin && (
+                                                            {hasDelete("files_delete", item) && (
                                                                 <button
                                                                     className="btn-delete"
                                                                     onClick={() => deleteItem(item)}
@@ -1150,7 +1161,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                                                 >
                                                                     Pobierz
                                                                 </button>
-                                                                {isAdmin && (
+                                                                {hasDelete("files_delete", item) && (
                                                                     <button
                                                                         className="btn-delete list-btn"
                                                                         onClick={() => deleteItem(item)}
@@ -1170,7 +1181,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                                                 >
                                                                     Pobierz
                                                                 </button>
-                                                                {isAdmin && (
+                                                                {hasDelete("files_delete", item) && (
                                                                     <button
                                                                         className="btn-delete list-btn"
                                                                         onClick={() => deleteItem(item)}

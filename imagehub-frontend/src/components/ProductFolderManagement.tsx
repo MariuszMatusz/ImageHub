@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import '../styles/ProductFolderManagement.css';
 import axiosInstance from "../utils/axiosInstance";
 
@@ -27,12 +26,12 @@ const ProductFolderManagement: React.FC = () => {
         try {
             setLoading(true);
 
-            // Get all folders
+            // Pobierz wszystkie foldery
             const foldersResponse = await axiosInstance.get('/nextcloud/files', {
                 params: { includeChildren: true, depth: 3 }
             });
 
-            // Get product folders
+            // Pobierz foldery produktowe
             const productFoldersResponse = await axiosInstance.get('/folder-permissions/product-folders');
 
             const flattenFolders = (items: any[], parentPath = ''): Folder[] => {
@@ -65,8 +64,12 @@ const ProductFolderManagement: React.FC = () => {
         }
     };
 
-    const handleSetProductFolder = async () => {
-        if (!selectedFolder) {
+    // Zmodyfikowana funkcja, aby przyjmowała opcjonalny parametr folderPath
+    const handleSetProductFolder = async (folderPath?: string) => {
+        // Użyj dostarczonego folderPath lub w przeciwnym razie selectedFolder
+        const pathToUse = folderPath || selectedFolder;
+
+        if (!pathToUse) {
             setError("Proszę wybrać folder");
             return;
         }
@@ -75,23 +78,23 @@ const ProductFolderManagement: React.FC = () => {
             setLoading(true);
 
             // Sprawdź, czy folder jest już oznaczony jako mający dzieci-produkty
-            const isAlreadyProductParent = productFolders.includes(selectedFolder);
+            const isAlreadyProductParent = productFolders.includes(pathToUse);
 
             // Wyślij żądanie do API
             await axiosInstance.post('/folder-permissions/product-children-folder', null, {
                 params: {
-                    folderPath: selectedFolder,
+                    folderPath: pathToUse,
                     hasChildrenAsProducts: !isAlreadyProductParent
                 }
             });
 
             // Zaktualizuj lokalną listę
             if (isAlreadyProductParent) {
-                setProductFolders(productFolders.filter(path => path !== selectedFolder));
-                setSuccess(`Folder "${selectedFolder}" został oznaczony jako zwykły folder (dzieci nie są produktami)`);
+                setProductFolders(productFolders.filter(path => path !== pathToUse));
+                setSuccess(`Folder "${pathToUse}" został oznaczony jako zwykły folder (dzieci nie są produktami)`);
             } else {
-                setProductFolders([...productFolders, selectedFolder]);
-                setSuccess(`Folder "${selectedFolder}" został oznaczony jako folder z podfolderami-produktami`);
+                setProductFolders([...productFolders, pathToUse]);
+                setSuccess(`Folder "${pathToUse}" został oznaczony jako folder z podfolderami-produktami`);
             }
 
         } catch (err) {
@@ -101,7 +104,8 @@ const ProductFolderManagement: React.FC = () => {
             setLoading(false);
         }
     };
-    // funkcję do formatowania ścieżki z wyróżnieniem hierarchii
+
+    // funkcja do formatowania ścieżki z wyróżnieniem hierarchii
     const formatFolderPath = (path: string) => {
         const segments = path.split('/');
         return segments.map((segment, index) => (
@@ -149,7 +153,7 @@ const ProductFolderManagement: React.FC = () => {
 
             <button
                 className="toggle-product-btn"
-                onClick={handleSetProductFolder}
+                onClick={() => handleSetProductFolder()}
                 disabled={loading || !selectedFolder}
             >
                 {selectedFolder && productFolders.includes(selectedFolder)
@@ -171,8 +175,8 @@ const ProductFolderManagement: React.FC = () => {
                                 <button
                                     className="remove-btn"
                                     onClick={() => {
-                                        setSelectedFolder(path);
-                                        handleSetProductFolder();
+                                        // Zmodyfikowane, aby przekazać ścieżkę bezpośrednio do handleSetProductFolder
+                                        handleSetProductFolder(path);
                                     }}
                                 >
                                     ×

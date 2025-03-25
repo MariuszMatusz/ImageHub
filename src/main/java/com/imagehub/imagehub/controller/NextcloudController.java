@@ -40,7 +40,8 @@ public class NextcloudController {
     }
 
     @GetMapping("/files")
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+//    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Map<String, Object>>> listFiles(
             @RequestParam(defaultValue = "") String path,
             @RequestParam(defaultValue = "true") boolean includeChildren,
@@ -69,8 +70,10 @@ public class NextcloudController {
     }
 
     @GetMapping("/my-folders")
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
+//    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<List<Map<String, Object>>> listMyFolders(@AuthenticationPrincipal User currentUser) {
+        logger.info("Received request to list My Folders");
         try {
             logger.info("Received request to list accessible folders for user: {}", currentUser.getUsername());
 

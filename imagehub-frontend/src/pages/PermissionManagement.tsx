@@ -2,11 +2,21 @@ import React, { useState, useEffect } from "react";
 import axiosInstance from "../utils/axiosInstance";
 import "../styles/PermissionManagement.css";
 
+export interface UserRole {
+    name: string;
+    permissions: UserPermission[]
+}
+
+export type UserPermission = "files_read" | "files_write" | "files_delete" | "files_write_own" | "files_delete_own" |
+    "users_read"| "users_write"| "users_delete"|
+    "roles_read"| "roles_write"| "roles_delete";
+
+
 interface User {
     id: number;
     username: string;
     email: string;
-    role: string;
+    role: UserRole;
 }
 
 interface Permission {

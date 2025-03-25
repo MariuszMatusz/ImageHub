@@ -2,11 +2,19 @@ import React, { useEffect, useState } from "react";
 import axiosInstance from "../utils/axiosInstance";
 import "../styles/UserProfile.css";
 
+interface Role {
+    id?: number;
+    name: string;
+    description?: string;
+    permissions: string[];
+    systemRole?: boolean;
+}
+
 interface User {
     id: number;
     username: string;
     email: string;
-    role: string;
+    role: Role; // Zmienione na obiekt Role zamiast string
 }
 
 const UserProfile: React.FC = () => {
@@ -162,6 +170,9 @@ const UserProfile: React.FC = () => {
         return <div className="profile-error">{error}</div>;
     }
 
+    // Bezpieczne pobieranie nazwy roli
+    const roleName = user?.role?.name || (typeof user?.role === 'string' ? user?.role : '');
+
     return (
         <div className="user-profile-container">
             <h2>Profil użytkownika</h2>
@@ -174,7 +185,8 @@ const UserProfile: React.FC = () => {
 
                 <div className="profile-field">
                     <label>Rola:</label>
-                    <span>{user?.role}</span>
+                    {/* Zmieniono renderowanie roli, aby wyświetlała tylko nazwę */}
+                    <span>{roleName}</span>
                 </div>
             </div>
 

@@ -1,6 +1,5 @@
 package com.imagehub.imagehub.security;
 
-import com.imagehub.imagehub.model.Role;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -51,14 +50,14 @@ public class JwtUtil {
                 .getSubject();
     }
 
-    public Role extractRole(String token) {
-        String role = Jwts.parserBuilder()
+    // Zmieniono zwracany typ z enum Role na String
+    public String extractRole(String token) {
+        return Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody()
                 .get("role", String.class);
-        return Role.valueOf(role);
     }
 
     private boolean isTokenExpired(String token) {

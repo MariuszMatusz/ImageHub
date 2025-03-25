@@ -4,11 +4,13 @@ import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import FolderGrid from "../components/FolderGrid";
 import axiosInstance from "../utils/axiosInstance";
+import { mapToLocalStorage, mapToObject } from "../utils/localStorageHelper";
+import { UserRole } from "./PermissionManagement";
 
 const Dashboard: React.FC = () => {
     const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
     const [folders, setFolders] = useState([]);
-    const [userRole, setUserRole] = useState<string | null>(null);
+    const [userRole, setUserRole] = useState<UserRole | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     // State for search
@@ -17,52 +19,110 @@ const Dashboard: React.FC = () => {
     const [searchResults, setSearchResults] = useState<any[]>([]);
     // State to determine if we're in global search mode
     const [isGlobalSearch, setIsGlobalSearch] = useState<boolean>(false);
+    const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
     useEffect(() => {
         // Check URL for folder parameter
         const params = new URLSearchParams(window.location.search);
         const folderParam = params.get('folder');
 
-        // Get logged in user info
-        axiosInstance.get("/users/me")
-            .then(response => {
-                setUserRole(response.data.role);
-                localStorage.setItem("role", response.data.role); // Store role in localStorage
-                return response.data.role;
-            })
-            .then(role => {
-                // Get appropriate folder list based on role
-                const endpoint = role === 'ADMIN' ? "/nextcloud/files" : "/nextcloud/my-folders";
-                return axiosInstance.get(endpoint, {
-                    params: {
-                        includeChildren: true,
-                        depth: 3
-                    }
-                });
-            })
-            .then(response => {
-                setFolders(response.data);
-                setIsLoading(false);
+        // Try to get user info from localStorage
+        const roleFromLogin = localStorage.getItem("role");
+        const userRoleFromToken = roleFromLogin ? mapToObject<UserRole | string>(roleFromLogin) : null;
 
-                // First check URL parameter if present
-                if (folderParam) {
-                    setSelectedFolderId(folderParam);
-                }
-                // If no URL parameter, select default folder
-                else if (response.data.length > 0 && !selectedFolderId) {
-                    // Check if first item has children
-                    if (response.data[0].children && response.data[0].children.length > 0) {
-                        setSelectedFolderId(response.data[0].children[0].path);
-                    } else {
-                        setSelectedFolderId(response.data[0].path);
-                    }
+        // Define role object from string
+        const userRoleObject: UserRole = {
+            name: typeof userRoleFromToken === 'string' ? userRoleFromToken :
+                (typeof userRoleFromToken === 'object' && userRoleFromToken !== null && 'name' in userRoleFromToken) ?
+                    (userRoleFromToken as UserRole).name : '',
+            permissions: []
+        };
+console.log(userRoleObject.name)
+        // Set role data
+        if (userRoleObject.name) {
+            setUserRole(userRoleObject);
+            setIsAdmin(userRoleObject.name === 'ADMIN');
+
+            // Get appropriate folder list based on role
+            const endpoint = userRoleObject.name === 'ADMIN' ? "/nextcloud/files" : "/nextcloud/my-folders";
+            axiosInstance.get(endpoint, {
+                params: {
+                    includeChildren: true,
+                    depth: 3
                 }
             })
-            .catch(error => {
-                console.error("Error fetching data:", error);
-                setError("Nie udało się załadować danych. Spróbuj ponownie później.");
-                setIsLoading(false);
-            });
+                .then(response => {
+                    setFolders(response.data);
+                    setIsLoading(false);
+
+                    // First check URL parameter if present
+                    if (folderParam) {
+                        setSelectedFolderId(folderParam);
+                    }
+                    // If no URL parameter, select default folder
+                    else if (response.data.length > 0 && !selectedFolderId) {
+                        // Check if first item has children
+                        if (response.data[0].children && response.data[0].children.length > 0) {
+                            setSelectedFolderId(response.data[0].children[0].path);
+                        } else {
+                            setSelectedFolderId(response.data[0].path);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching folders:", error);
+                    setError("Nie udało się załadować danych folderów. Spróbuj ponownie później.");
+                    setIsLoading(false);
+                });
+        } else {
+            // Fallback to try getting user info from API
+            axiosInstance.get("/users/me")
+                .then(response => {
+                    const roleData = response.data.role;
+                    setUserRole(roleData);
+                    // Store role in localStorage as a properly formatted JSON string
+                    if (roleData) {
+                        const roleString = mapToLocalStorage(roleData);
+                        localStorage.setItem("role", roleString);
+                        setIsAdmin(roleData.name === 'ADMIN');
+                    }
+                    return roleData;
+                })
+                .then(role => {
+                    // Get appropriate folder list based on role
+                    console.warn(role);
+                    const endpoint = role && role.name === 'ADMIN' ? "/nextcloud/files" : "/nextcloud/my-folders";
+                    return axiosInstance.get(endpoint, {
+                        params: {
+                            includeChildren: true,
+                            depth: 3
+                        }
+                    });
+                })
+                .then(response => {
+                    setFolders(response.data);
+                    setIsLoading(false);
+
+                    // First check URL parameter if present
+                    if (folderParam) {
+                        setSelectedFolderId(folderParam);
+                    }
+                    // If no URL parameter, select default folder
+                    else if (response.data.length > 0 && !selectedFolderId) {
+                        // Check if first item has children
+                        if (response.data[0].children && response.data[0].children.length > 0) {
+                            setSelectedFolderId(response.data[0].children[0].path);
+                        } else {
+                            setSelectedFolderId(response.data[0].path);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching data:", error);
+                    setError("Nie udało się załadować danych. Spróbuj ponownie później.");
+                    setIsLoading(false);
+                });
+        }
     }, []);
 
     // Handle folder selection
@@ -144,7 +204,7 @@ const Dashboard: React.FC = () => {
                 <Sidebar
                     folders={folders}
                     setSelectedFolderId={handleFolderSelect}
-                    isAdmin={userRole === 'ADMIN'}
+                    isAdmin={isAdmin}
                     selectedFolderId={selectedFolderId}
                     maxFolderDepth={1}
                     onSearch={handleGlobalSearch}
@@ -152,7 +212,7 @@ const Dashboard: React.FC = () => {
                 <div className="content-area">
                     <FolderGrid
                         parentFolderId={selectedFolderId}
-                        userRole={userRole || ''}
+                        userRole={userRole || null}
                         searchTerm={searchTerm}
                         isGlobalSearch={isGlobalSearch}
                         searchResults={searchResults}

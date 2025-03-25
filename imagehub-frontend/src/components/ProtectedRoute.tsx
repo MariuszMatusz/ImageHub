@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
+import { mapToObject } from "../utils/localStorageHelper";
+import { UserRole } from "../pages/PermissionManagement";
 
 interface ProtectedRouteProps {
     children?: React.ReactNode;
@@ -13,25 +15,34 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
     useEffect(() => {
         // Sprawdź token uwierzytelniający i rolę
         const token = localStorage.getItem("token");
-        const userRole = localStorage.getItem("role");
 
-        // Brak tokena = brak autoryzacji
-        if (!token) {
+        try {
+            const roleString = localStorage.getItem("role");
+            const userRole = roleString ? mapToObject<UserRole>(roleString) : null;
+            console.log(userRole, requiredRole);
+
+            // Brak tokena = brak autoryzacji
+            if (!token) {
+                setIsAuthorized(false);
+                setIsChecking(false);
+                return;
+            }
+
+            // Jeśli wymagana konkretna rola, sprawdź ją
+            if (requiredRole && userRole?.name !== requiredRole) {
+                setIsAuthorized(false);
+                setIsChecking(false);
+                return;
+            }
+
+            // Wszystkie warunki spełnione
+            setIsAuthorized(true);
+            setIsChecking(false);
+        } catch (error) {
+            console.error("Error checking authorization:", error);
             setIsAuthorized(false);
             setIsChecking(false);
-            return;
         }
-
-        // Jeśli wymagana konkretna rola, sprawdź ją
-        if (requiredRole && userRole !== requiredRole) {
-            setIsAuthorized(false);
-            setIsChecking(false);
-            return;
-        }
-
-        // Wszystkie warunki spełnione
-        setIsAuthorized(true);
-        setIsChecking(false);
     }, [requiredRole]);
 
     // Podczas sprawdzania pokaż loader

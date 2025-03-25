@@ -1,23 +1,34 @@
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../utils/axiosInstance";
 import "../styles/UserManagement.css";
+import { AxiosError } from "axios";
+
+// Zdefiniujmy prawidłowy interfejs Role
+interface Role {
+    id: number;
+    name: string;
+    description?: string;
+    permissions: string[];
+    systemRole?: boolean;
+}
 
 interface User {
     id: number;
     username: string;
     email: string;
-    role: string;
+    role: Role; // Zmiana z string na obiekt Role
 }
 
 interface NewUser {
     username: string;
     email: string;
     password: string;
-    role: string;
+    roleId: number; // Używamy ID roli zamiast nazwy
 }
 
 const UserManagement: React.FC = () => {
     const [users, setUsers] = useState<User[]>([]);
+    const [roles, setRoles] = useState<Role[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const [statusMessage, setStatusMessage] = useState<{
@@ -30,12 +41,12 @@ const UserManagement: React.FC = () => {
     const [editedUser, setEditedUser] = useState<{
         username: string;
         email: string;
-        role: string;
+        roleId: number;
         password: string;
     }>({
         username: '',
         email: '',
-        role: 'USER',
+        roleId: 0,
         password: ''
     });
 
@@ -45,26 +56,57 @@ const UserManagement: React.FC = () => {
         username: '',
         email: '',
         password: '',
-        role: 'USER'
+        roleId: 0
     });
 
-    // Load users on component mount
+    // Load users and roles on component mount
     useEffect(() => {
-        fetchUsers();
+        Promise.all([
+            fetchUsers(),
+            fetchRoles()
+        ]).then(() => {
+            setLoading(false);
+        });
     }, []);
 
     const fetchUsers = async () => {
-        setLoading(true);
         try {
             const response = await axiosInstance.get("/users");
             setUsers(response.data);
             setError(null);
-        } catch (err) {
+            return response.data;
+        } catch (error) {
             setError("Nie udało się pobrać listy użytkowników.");
-            console.error("Error fetching users:", err);
-        } finally {
-            setLoading(false);
+            console.error("Error fetching users:", error);
+            return [];
         }
+    };
+
+    const fetchRoles = async () => {
+        try {
+            const response = await axiosInstance.get("/roles");
+            setRoles(response.data);
+
+            // Ustaw domyślne roleId dla nowego użytkownika i edytowanego użytkownika
+            const defaultRole = response.data.find((role: Role) => role.name === "USER");
+            if (defaultRole) {
+                setNewUser(prev => ({ ...prev, roleId: defaultRole.id }));
+                setEditedUser(prev => ({ ...prev, roleId: defaultRole.id }));
+            }
+
+            return response.data;
+        } catch (error) {
+            console.error("Error fetching roles:", error);
+            return [];
+        }
+    };
+
+    // Funkcja pomocnicza do bezpiecznego wydobycia nazwy roli
+    const getRoleName = (role: any): string => {
+        if (!role) return '';
+        if (typeof role === 'string') return role;
+        if (typeof role === 'object' && role.name) return role.name;
+        return '';
     };
 
     const handleEditUser = (user: User) => {
@@ -72,7 +114,7 @@ const UserManagement: React.FC = () => {
         setEditedUser({
             username: user.username,
             email: user.email,
-            role: user.role,
+            roleId: user.role.id,
             password: '' // Password field is empty when editing
         });
     };
@@ -82,20 +124,58 @@ const UserManagement: React.FC = () => {
     };
 
     const handleUpdateUser = async (id: number) => {
+        console.log("Edycja użytkownika ID:", id);
+        console.log("Dane edytowanego użytkownika:", editedUser);
+
         try {
-            await axiosInstance.put(`/users/${id}`, editedUser);
+            // Pobieramy aktualnego użytkownika
+            const currentUserResponse = await axiosInstance.get(`/users/${id}`);
+            const currentUser = currentUserResponse.data;
+            console.log("Aktualny użytkownik:", currentUser);
+
+            // Znajdź rolę na podstawie wybranego roleId
+            const selectedRole = roles.find(role => role.id === editedUser.roleId);
+            console.log("Znaleziona rola:", selectedRole);
+
+            if (!selectedRole) {
+                throw new Error("Nie wybrano właściwej roli");
+            }
+
+            // Przygotuj dane zachowując strukturę obecnego użytkownika
+            const updateData = {
+                username: editedUser.username,
+                email: editedUser.email,
+                role: selectedRole,
+                // Zawsze wysyłamy hasło
+                password: editedUser.password || "dummy_password" // Wartość zastępcza, jeśli nie zmieniono hasła
+            };
+
+            console.log("Dane wysyłane do API:", updateData);
+
+            await axiosInstance.put(`/users/${id}`, updateData);
             setStatusMessage({
                 type: 'success',
                 text: `Użytkownik ${editedUser.username} został zaktualizowany.`
             });
             setEditingUserId(null);
             fetchUsers(); // Refresh the user list
-        } catch (err) {
+        } catch (error) {
+            console.error("Error updating user:", error);
+
+            // Wyświetl bardziej szczegółową informację o błędzie
+            let errorMessage = "Nie udało się zaktualizować użytkownika.";
+            const axiosError = error as AxiosError<any>;
+
+            if (axiosError.response) {
+                console.log("Pełna odpowiedź błędu:", axiosError.response);
+                const responseData = axiosError.response.data;
+                errorMessage += ` Szczegóły: ${typeof responseData === 'string' ? responseData : JSON.stringify(responseData)}`;
+            }
+
             setStatusMessage({
                 type: 'error',
-                text: "Nie udało się zaktualizować użytkownika."
+                text: errorMessage
             });
-            console.error("Error updating user:", err);
         }
     };
 
@@ -111,12 +191,12 @@ const UserManagement: React.FC = () => {
                 text: `Użytkownik ${username} został usunięty.`
             });
             fetchUsers(); // Refresh the user list
-        } catch (err) {
+        } catch (error) {
             setStatusMessage({
                 type: 'error',
                 text: "Nie udało się usunąć użytkownika."
             });
-            console.error("Error deleting user:", err);
+            console.error("Error deleting user:", error);
         }
     };
 
@@ -124,7 +204,7 @@ const UserManagement: React.FC = () => {
         e.preventDefault();
 
         // Validate form
-        if (!newUser.username || !newUser.email || !newUser.password) {
+        if (!newUser.username || !newUser.email || !newUser.password || newUser.roleId === 0) {
             setStatusMessage({
                 type: 'error',
                 text: "Wszystkie pola są wymagane."
@@ -133,7 +213,23 @@ const UserManagement: React.FC = () => {
         }
 
         try {
-            await axiosInstance.post("/users", newUser);
+            // Znajdź rolę na podstawie wybranego roleId
+            const selectedRole = roles.find(role => role.id === newUser.roleId);
+            console.log("Wybrana rola:", selectedRole);
+
+            if (!selectedRole) {
+                throw new Error("Nie wybrano właściwej roli");
+            }
+
+            const userData = {
+                username: newUser.username,
+                email: newUser.email,
+                password: newUser.password,
+                role: selectedRole // Przekazujemy pełny obiekt roli
+            };
+
+            console.log("Wysyłam dane nowego użytkownika:", userData);
+            await axiosInstance.post("/users", userData);
             setStatusMessage({
                 type: 'success',
                 text: `Użytkownik ${newUser.username} został dodany.`
@@ -143,15 +239,26 @@ const UserManagement: React.FC = () => {
                 username: '',
                 email: '',
                 password: '',
-                role: 'USER'
+                roleId: selectedRole.id
             });
             fetchUsers(); // Refresh the user list
-        } catch (err) {
+        } catch (error) {
+            console.error("Error adding user:", error);
+
+            // Wyświetl bardziej szczegółową informację o błędzie
+            let errorMessage = "Nie udało się dodać użytkownika.";
+            const axiosError = error as AxiosError<any>;
+
+            if (axiosError.response && axiosError.response.data) {
+                console.log("Pełna odpowiedź błędu:", axiosError.response);
+                const responseData = axiosError.response.data;
+                errorMessage += ` Szczegóły: ${typeof responseData === 'string' ? responseData : JSON.stringify(responseData)}`;
+            }
+
             setStatusMessage({
                 type: 'error',
-                text: "Nie udało się dodać użytkownika."
+                text: errorMessage
             });
-            console.error("Error adding user:", err);
         }
     };
 
@@ -159,7 +266,7 @@ const UserManagement: React.FC = () => {
         setStatusMessage(null);
     };
 
-    if (loading && users.length === 0) {
+    if (loading) {
         return <div className="loading-message">Ładowanie użytkowników...</div>;
     }
 
@@ -225,16 +332,26 @@ const UserManagement: React.FC = () => {
                             <label htmlFor="new-role">Rola:</label>
                             <select
                                 id="new-role"
-                                value={newUser.role}
-                                onChange={(e) => setNewUser({...newUser, role: e.target.value})}
+                                value={newUser.roleId}
+                                onChange={(e) => setNewUser({...newUser, roleId: parseInt(e.target.value)})}
                             >
-                                <option value="USER">Użytkownik</option>
-                                <option value="ADMIN">Administrator</option>
+                                <option value="0">Wybierz rolę</option>
+                                {roles.map(role => (
+                                    <option key={role.id} value={role.id}>
+                                        {role.name} {role.description ? `- ${role.description}` : ''}
+                                    </option>
+                                ))}
                             </select>
                         </div>
 
                         <div className="form-actions">
-                            <button type="submit" className="save-btn">Dodaj</button>
+                            <button
+                                type="submit"
+                                className="save-btn"
+                                disabled={newUser.roleId === 0} // Blokuj przycisk jeśli nie wybrano roli
+                            >
+                                Dodaj
+                            </button>
                             <button
                                 type="button"
                                 className="cancel-btn"
@@ -289,14 +406,21 @@ const UserManagement: React.FC = () => {
                             <td>
                                 {editingUserId === user.id ? (
                                     <select
-                                        value={editedUser.role}
-                                        onChange={(e) => setEditedUser({...editedUser, role: e.target.value})}
+                                        value={editedUser.roleId}
+                                        onChange={(e) => setEditedUser({...editedUser, roleId: parseInt(e.target.value)})}
                                     >
-                                        <option value="USER">Użytkownik</option>
-                                        <option value="ADMIN">Administrator</option>
+                                        {roles.map(role => (
+                                            <option key={role.id} value={role.id}>
+                                                {role.name} {role.description ? `- ${role.description}` : ''}
+                                            </option>
+                                        ))}
                                     </select>
                                 ) : (
-                                    user.role
+                                    /* Wyświetlamy nazwę roli, a opcjonalnie również opis */
+                                    <span>
+                                        {getRoleName(user.role)}
+                                        {user.role.description && <span className="role-description"> - {user.role.description}</span>}
+                                    </span>
                                 )}
                             </td>
                             <td>
