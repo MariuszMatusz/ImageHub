@@ -1,5 +1,7 @@
 package com.imagehub.imagehub.controller;
 
+import com.imagehub.imagehub.model.FolderPermission;
+import com.imagehub.imagehub.service.FolderPermissionService;
 import com.imagehub.imagehub.model.Role;
 import com.imagehub.imagehub.model.User;
 import com.imagehub.imagehub.service.RoleService;
@@ -13,7 +15,10 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -26,6 +31,9 @@ public class UserController {
 
     @Autowired
     private RoleService roleService;
+
+    @Autowired
+    private FolderPermissionService folderPermissionService;
 
     // ADMIN: Pobranie listy wszystkich użytkowników
     @PreAuthorize("hasRole('ADMIN')")
@@ -122,4 +130,33 @@ public class UserController {
         }
         return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
     }
+
+    @GetMapping("/me/permissions")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> getCurrentUserPermissions(@AuthenticationPrincipal User currentUser) {
+        Map<String, Object> permissions = new HashMap<>();
+
+        // Uprawnienia z roli
+        permissions.put("rolePermissions", currentUser.getRole().getPermissions());
+
+        // Uprawnienia do folderów
+        List<FolderPermission> folderPermissions = folderPermissionService.getUserPermissions(currentUser);
+        Map<String, Map<String, Boolean>> folderPermissionsMap = new HashMap<>();
+
+        for (FolderPermission fp : folderPermissions) {
+            Map<String, Boolean> folderPerms = new HashMap<>();
+            folderPerms.put("canRead", fp.isCanRead());
+            folderPerms.put("canWrite", fp.isCanWrite());
+            folderPerms.put("canDelete", fp.isCanDelete());
+            folderPerms.put("includeSubfolders", fp.isIncludeSubfolders());
+
+            folderPermissionsMap.put(fp.getFolderPath(), folderPerms);
+        }
+
+        permissions.put("folderPermissions", folderPermissionsMap);
+        permissions.put("isAdmin", "ADMIN".equals(currentUser.getRole().getName()));
+
+        return ResponseEntity.ok(permissions);
+    }
+
 }

@@ -327,15 +327,14 @@ public class NextcloudService {
         result.add(myFoldersRoot);
         return result;
     }
-
     /**
      * Pobierz plik z uwzględnieniem uprawnień użytkownika
      */
     public byte[] downloadFile(String path, User currentUser) throws Exception {
-        // Sprawdź uprawnienia do odczytu
-        if (!folderPermissionService.canUserReadFolder(currentUser, path)) {
+        // Sprawdź uprawnienia do pobierania
+        if (!folderPermissionService.canUserDownloadFolder(currentUser, path)) {
             logger.warn("User {} attempted to download file {} without permission", currentUser.getUsername(), path);
-            throw new SecurityException("No read permission for this file");
+            throw new SecurityException("No download permission for this file");
         }
 
         logger.info("Downloading file: {}", path);
@@ -352,6 +351,30 @@ public class NextcloudService {
         buffer.flush();
         return buffer.toByteArray();
     }
+//    /**
+//     * Pobierz plik z uwzględnieniem uprawnień użytkownika
+//     */
+//    public byte[] downloadFile(String path, User currentUser) throws Exception {
+//        // Sprawdź uprawnienia do odczytu
+//        if (!folderPermissionService.canUserReadFolder(currentUser, path)) {
+//            logger.warn("User {} attempted to download file {} without permission", currentUser.getUsername(), path);
+//            throw new SecurityException("No read permission for this file");
+//        }
+//
+//        logger.info("Downloading file: {}", path);
+//        InputStream is = nextcloudClient.downloadFile(path);
+//        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+//
+//        int nRead;
+//        byte[] data = new byte[16384];
+//
+//        while ((nRead = is.read(data, 0, data.length)) != -1) {
+//            buffer.write(data, 0, nRead);
+//        }
+//
+//        buffer.flush();
+//        return buffer.toByteArray();
+//    }
 
     /**
      * Tworzy plik zip z folderu
@@ -402,6 +425,77 @@ public class NextcloudService {
             }
         }
     }
+
+    /**
+     * Tworzy plik ZIP zawierający wiele plików i folderów
+     *
+     * @param paths Lista ścieżek do plików i folderów, które mają być dodane do ZIP
+     * @param currentUser Aktualny użytkownik
+     * @return Dane pliku ZIP jako tablica bajtów
+     * @throws Exception W przypadku błędu
+     */
+    public byte[] createZipFromMultiplePaths(List<String> paths, User currentUser) throws Exception {
+        logger.info("Tworzenie pliku ZIP z {} elementów dla użytkownika: {}", paths.size(), currentUser.getUsername());
+
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             ZipOutputStream zipOut = new ZipOutputStream(baos)) {
+
+            // Ustaw poziom kompresji
+            zipOut.setLevel(ZipOutputStream.DEFLATED);
+
+            // Dodaj każdy plik/folder do archiwum ZIP
+            for (String path : paths) {
+                if (path == null || path.isEmpty()) {
+                    continue;
+                }
+
+                // Ustal nazwę pliku/folderu z pełnej ścieżki
+                String itemName = extractLastPathSegment(path);
+                logger.debug("Dodawanie elementu: {} (ścieżka: {}) do ZIP", itemName, path);
+
+                // Sprawdź, czy to plik czy folder
+                // Możemy użyć metody listFiles aby sprawdzić, czy to folder
+                boolean isDirectory = false;
+                try {
+                    // Próbujemy listować pliki - jeśli się uda, to znaczy, że to folder
+                    listFiles(path, currentUser);
+                    isDirectory = true;
+                } catch (Exception e) {
+                    // Jeśli się nie uda listować, to prawdopodobnie to plik
+                    isDirectory = false;
+                }
+
+                if (isDirectory) {
+                    // Dodaj folder i jego zawartość rekurencyjnie
+                    addFolderToZip(zipOut, path, itemName, currentUser);
+                } else {
+                    // Dodaj pojedynczy plik do zipa
+                    ZipEntry entry = new ZipEntry(itemName);
+                    zipOut.putNextEntry(entry);
+
+                    // Pobierz zawartość pliku i zapisz do zipa
+                    byte[] fileContent = downloadFile(path, currentUser);
+                    zipOut.write(fileContent);
+                    zipOut.closeEntry();
+
+                    logger.debug("Dodano plik do ZIP: {}", itemName);
+                }
+            }
+
+            // Zamknij strumień ZIP i zwróć dane
+            zipOut.flush();
+            zipOut.close();
+
+            logger.info("Pomyślnie utworzono ZIP z {} elementów, rozmiar: {} bajtów",
+                    paths.size(), baos.size());
+
+            return baos.toByteArray();
+        } catch (Exception e) {
+            logger.error("Błąd podczas tworzenia ZIP z wielu elementów: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
     /**
      * Wgraj plik z uwzględnieniem uprawnień użytkownika
      */

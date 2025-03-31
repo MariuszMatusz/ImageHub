@@ -31,6 +31,9 @@ public class FolderPermission {
     @Column(name = "can_delete", nullable = false)
     private boolean canDelete = false;
 
+    @Column(name = "can_download", nullable = false)
+    private boolean canDownload = true;
+
     @Column(name = "include_subfolders", nullable = false)
     private boolean includeSubfolders = false;
 
@@ -42,38 +45,59 @@ public class FolderPermission {
     public FolderPermission() {
     }
 
-    // Konstruktor z parametrami - zaktualizowany
-    public FolderPermission(String folderPath, User user, boolean canRead, boolean canWrite, boolean canDelete, boolean includeSubfolders) {
+    // Konstruktor z parametrami - dla kompatybilności ze starym kodem
+    public FolderPermission(String folderPath, User user, boolean canRead, boolean canWrite,
+                            boolean canDelete, boolean includeSubfolders) {
         this.folderPath = folderPath;
         this.user = user;
         this.canRead = canRead;
         this.canWrite = canWrite;
         this.canDelete = canDelete;
+        this.canDownload = canRead; // domyślnie canDownload = canRead
         this.includeSubfolders = includeSubfolders;
         this.permissionType = "STANDARD"; // Ustawienie domyślnej wartości
     }
 
     // Dodatkowy konstruktor z parametrem permission_type
-    public FolderPermission(String folderPath, User user, boolean canRead, boolean canWrite, boolean canDelete, boolean includeSubfolders, String permissionType) {
+    public FolderPermission(String folderPath, User user, boolean canRead, boolean canWrite,
+                            boolean canDelete, boolean includeSubfolders, String permissionType) {
         this.folderPath = folderPath;
         this.user = user;
         this.canRead = canRead;
         this.canWrite = canWrite;
         this.canDelete = canDelete;
+        this.canDownload = canRead; // domyślnie canDownload = canRead
         this.includeSubfolders = includeSubfolders;
         this.permissionType = permissionType;
     }
 
-    // Gettery i settery dla nowego pola
-    public String getPermissionType() {
-        return permissionType;
+    // Nowy konstruktor z parametrami - z canDownload
+    public FolderPermission(String folderPath, User user, boolean canRead, boolean canWrite,
+                            boolean canDelete, boolean canDownload, boolean includeSubfolders) {
+        this.folderPath = folderPath;
+        this.user = user;
+        this.canRead = canRead;
+        this.canWrite = canWrite;
+        this.canDelete = canDelete;
+        this.canDownload = canDownload;
+        this.includeSubfolders = includeSubfolders;
+        this.permissionType = "STANDARD";
     }
 
-    public void setPermissionType(String permissionType) {
+    // Pełny konstruktor z wszystkimi parametrami
+    public FolderPermission(String folderPath, User user, boolean canRead, boolean canWrite,
+                            boolean canDelete, boolean canDownload, boolean includeSubfolders, String permissionType) {
+        this.folderPath = folderPath;
+        this.user = user;
+        this.canRead = canRead;
+        this.canWrite = canWrite;
+        this.canDelete = canDelete;
+        this.canDownload = canDownload;
+        this.includeSubfolders = includeSubfolders;
         this.permissionType = permissionType;
     }
 
-    // Pozostałe gettery i settery
+    // Gettery i settery
     public Long getId() {
         return id;
     }
@@ -122,6 +146,14 @@ public class FolderPermission {
         this.canDelete = canDelete;
     }
 
+    public boolean isCanDownload() {
+        return canDownload;
+    }
+
+    public void setCanDownload(boolean canDownload) {
+        this.canDownload = canDownload;
+    }
+
     public boolean isIncludeSubfolders() {
         return includeSubfolders;
     }
@@ -130,6 +162,15 @@ public class FolderPermission {
         this.includeSubfolders = includeSubfolders;
     }
 
+    public String getPermissionType() {
+        return permissionType;
+    }
+
+    public void setPermissionType(String permissionType) {
+        this.permissionType = permissionType;
+    }
+
+    // Stałe dla typów uprawnień
     public static final String PERMISSION_TYPE_STANDARD = "STANDARD";
     public static final String PERMISSION_TYPE_PRODUCT = "PRODUCT";
     public static final String PERMISSION_TYPE_CHILDREN_AS_PRODUCTS = "CHILDREN_AS_PRODUCTS"; // Nowy typ

@@ -6,7 +6,11 @@ interface User {
     id: number;
     username: string;
     email: string;
-    role: string;
+    role: {
+        id: number;
+        name: string;
+        permissions: string[];
+    };
 }
 
 interface Folder {
@@ -24,6 +28,7 @@ interface Permission {
     canRead: boolean;
     canWrite: boolean;
     canDelete: boolean;
+    canDownload: boolean; // Nowe pole dla uprawnienia pobierania
     includeSubfolders: boolean;
 }
 
@@ -46,11 +51,13 @@ const FolderPermissions: React.FC = () => {
         canRead: boolean;
         canWrite: boolean;
         canDelete: boolean;
+        canDownload: boolean; // Nowe pole dla uprawnienia pobierania
         includeSubfolders: boolean;
     }>({
         canRead: true,
         canWrite: false,
         canDelete: false,
+        canDownload: true, // Domyślnie włączone, bo jeśli użytkownik ma dostęp do odczytu, to zwykle chcemy mu także dać możliwość pobierania
         includeSubfolders: false
     });
 
@@ -124,6 +131,7 @@ const FolderPermissions: React.FC = () => {
                     canRead: newPermission.canRead,
                     canWrite: newPermission.canWrite,
                     canDelete: newPermission.canDelete,
+                    canDownload: newPermission.canDownload, // Dodane nowe uprawnienie
                     includeSubfolders: newPermission.includeSubfolders
                 }
             });
@@ -140,6 +148,7 @@ const FolderPermissions: React.FC = () => {
                 canRead: true,
                 canWrite: false,
                 canDelete: false,
+                canDownload: true, // Resetujemy do domyślnej wartości
                 includeSubfolders: false
             });
 
@@ -204,6 +213,18 @@ const FolderPermissions: React.FC = () => {
 
     const clearStatusMessage = () => {
         setStatusMessage(null);
+    };
+
+    // Dodatkowa funkcja zapewniająca, że jeśli użytkownik ma uprawnienia do odczytu,
+    // domyślnie przyznajemy też pobieranie
+    const handleReadPermissionChange = (checked: boolean) => {
+        if (checked) {
+            // Jeśli włączamy odczyt, automatycznie włączamy też pobieranie
+            setNewPermission({...newPermission, canRead: checked, canDownload: true});
+        } else {
+            // Jeśli wyłączamy odczyt, wyłączamy też pobieranie
+            setNewPermission({...newPermission, canRead: checked, canDownload: false});
+        }
     };
 
     if (loading && folders.length === 0) {
@@ -271,9 +292,21 @@ const FolderPermissions: React.FC = () => {
                                         type="checkbox"
                                         id="can-read"
                                         checked={newPermission.canRead}
-                                        onChange={(e) => setNewPermission({...newPermission, canRead: e.target.checked})}
+                                        onChange={(e) => handleReadPermissionChange(e.target.checked)}
                                     />
                                     <label htmlFor="can-read">Odczyt</label>
+                                </div>
+
+                                {/* Nowy checkbox dla uprawnienia pobierania */}
+                                <div className="checkbox-group">
+                                    <input
+                                        type="checkbox"
+                                        id="can-download"
+                                        checked={newPermission.canDownload}
+                                        onChange={(e) => setNewPermission({...newPermission, canDownload: e.target.checked})}
+                                        disabled={!newPermission.canRead} // Pobieranie wymaga uprawnienia odczytu
+                                    />
+                                    <label htmlFor="can-download">Pobieranie</label>
                                 </div>
 
                                 <div className="checkbox-group">
@@ -329,6 +362,7 @@ const FolderPermissions: React.FC = () => {
                             <tr>
                                 <th>Folder</th>
                                 <th>Odczyt</th>
+                                <th>Pobieranie</th> {/* Nowa kolumna */}
                                 <th>Zapis</th>
                                 <th>Usuwanie</th>
                                 <th>Podfoldery</th>
@@ -340,24 +374,29 @@ const FolderPermissions: React.FC = () => {
                                 <tr key={permission.id}>
                                     <td>{permission.folderPath}</td>
                                     <td>
-                                            <span className={permission.canRead ? "yes" : "no"}>
-                                                {permission.canRead ? "Tak" : "Nie"}
-                                            </span>
+                                        <span className={permission.canRead ? "yes" : "no"}>
+                                            {permission.canRead ? "Tak" : "Nie"}
+                                        </span>
                                     </td>
                                     <td>
-                                            <span className={permission.canWrite ? "yes" : "no"}>
-                                                {permission.canWrite ? "Tak" : "Nie"}
-                                            </span>
+                                        <span className={permission.canDownload ? "yes" : "no"}>
+                                            {permission.canDownload ? "Tak" : "Nie"}
+                                        </span>
                                     </td>
                                     <td>
-                                            <span className={permission.canDelete ? "yes" : "no"}>
-                                                {permission.canDelete ? "Tak" : "Nie"}
-                                            </span>
+                                        <span className={permission.canWrite ? "yes" : "no"}>
+                                            {permission.canWrite ? "Tak" : "Nie"}
+                                        </span>
                                     </td>
                                     <td>
-                                            <span className={permission.includeSubfolders ? "yes" : "no"}>
-                                                {permission.includeSubfolders ? "Tak" : "Nie"}
-                                            </span>
+                                        <span className={permission.canDelete ? "yes" : "no"}>
+                                            {permission.canDelete ? "Tak" : "Nie"}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span className={permission.includeSubfolders ? "yes" : "no"}>
+                                            {permission.includeSubfolders ? "Tak" : "Nie"}
+                                        </span>
                                     </td>
                                     <td>
                                         <button

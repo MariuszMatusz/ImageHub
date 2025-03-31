@@ -10,6 +10,28 @@ interface Role {
     systemRole: boolean;
 }
 
+// Dodanie stałych z opisami uprawnień
+const permissionDescriptions: Record<string, string> = {
+    files_read: "Odczyt plików i folderów",
+    files_write: "Modyfikacja i dodawanie plików do wszystkich folderów",
+    files_delete: "Usuwanie plików ze wszystkich folderów",
+    files_write_own: "Modyfikacja i dodawanie plików tylko do przypisanych folderów",
+    files_delete_own: "Usuwanie plików tylko z przypisanych folderów",
+    users_read: "Przeglądanie listy użytkowników",
+    users_write: "Dodawanie i edycja użytkowników",
+    users_delete: "Usuwanie użytkowników",
+    roles_read: "Przeglądanie ról w systemie",
+    roles_write: "Tworzenie i edycja ról",
+    roles_delete: "Usuwanie ról"
+};
+
+// Dodanie grupowania uprawnień
+const permissionGroups: Record<string, string[]> = {
+    "Pliki i foldery": ["files_read", "files_write", "files_delete", "files_write_own", "files_delete_own"],
+    "Użytkownicy": ["users_read", "users_write", "users_delete"],
+    "Role": ["roles_read", "roles_write", "roles_delete"]
+};
+
 interface Permission {
     id: string;
     name: string;
@@ -62,14 +84,54 @@ const RoleManagement: React.FC = () => {
         }
     };
 
-    // Group permissions by category for display
-    const groupedPermissions = availablePermissions.reduce((acc, permission) => {
-        if (!acc[permission.category]) {
-            acc[permission.category] = [];
-        }
-        acc[permission.category].push(permission);
-        return acc;
-    }, {} as Record<string, Permission[]>);
+    // Funkcja do grupowania uprawnień według kategorii z sortowaniem
+    const getGroupedPermissions = () => {
+        const grouped: Record<string, Permission[]> = {};
+
+        availablePermissions.forEach(permission => {
+            if (!grouped[permission.category]) {
+                grouped[permission.category] = [];
+            }
+            grouped[permission.category].push(permission);
+        });
+
+        // Sortuj kategorie według permissionGroups (dla zachowania określonej kolejności)
+        const sortedGrouped: [string, Permission[]][] = [];
+        Object.keys(permissionGroups).forEach(category => {
+            if (grouped[category]) {
+                sortedGrouped.push([category, grouped[category]]);
+            }
+        });
+
+        // Dodaj pozostałe kategorie, które nie zostały uwzględnione w permissionGroups
+        Object.entries(grouped).forEach(([category, permissions]) => {
+            if (!permissionGroups[category]) {
+                sortedGrouped.push([category, permissions]);
+            }
+        });
+
+        return sortedGrouped;
+    };
+
+    // Generowanie wyjaśnienia wybranej roli
+    const getRoleExplanation = (role: Role): string => {
+        const permissionsByCategory = Object.entries(permissionGroups)
+            .map(([category, permissionIds]) => {
+                const roleHasPermissions = permissionIds.filter(id => role.permissions.includes(id));
+                if (roleHasPermissions.length === 0) return null;
+
+                const permissionNames = roleHasPermissions.map(id =>
+                    permissionDescriptions[id] || id
+                );
+
+                return `${category}: ${permissionNames.join(', ')}`;
+            })
+            .filter(Boolean);
+
+        return permissionsByCategory.length > 0
+            ? permissionsByCategory.join(' | ')
+            : 'Brak uprawnień';
+    };
 
     const handleSelectRole = (role: Role) => {
         setSelectedRole(role);
@@ -212,6 +274,61 @@ const RoleManagement: React.FC = () => {
         }
     };
 
+    // Funkcja do szybkiego wybierania wszystkich uprawnień w grupie
+    const togglePermissionGroup = (groupPermissions: string[], target: 'edit' | 'new', checked: boolean) => {
+        if (target === 'edit' && selectedRole) {
+            let updatedPermissions = [...selectedRole.permissions];
+
+            if (checked) {
+                // Dodaj wszystkie uprawnienia z grupy, które jeszcze nie są zaznaczone
+                groupPermissions.forEach(permId => {
+                    if (!updatedPermissions.includes(permId)) {
+                        updatedPermissions.push(permId);
+                    }
+                });
+            } else {
+                // Usuń wszystkie uprawnienia z grupy
+                updatedPermissions = updatedPermissions.filter(
+                    permId => !groupPermissions.includes(permId)
+                );
+            }
+
+            setSelectedRole({
+                ...selectedRole,
+                permissions: updatedPermissions
+            });
+        } else if (target === 'new') {
+            let updatedPermissions = [...newRole.permissions];
+
+            if (checked) {
+                groupPermissions.forEach(permId => {
+                    if (!updatedPermissions.includes(permId)) {
+                        updatedPermissions.push(permId);
+                    }
+                });
+            } else {
+                updatedPermissions = updatedPermissions.filter(
+                    permId => !groupPermissions.includes(permId)
+                );
+            }
+
+            setNewRole({
+                ...newRole,
+                permissions: updatedPermissions
+            });
+        }
+    };
+
+    // Sprawdza, czy wszystkie uprawnienia z grupy są wybrane
+    const areAllPermissionsInGroupSelected = (groupPermissions: string[], rolePermissions: string[]): boolean => {
+        return groupPermissions.every(permId => rolePermissions.includes(permId));
+    };
+
+    // Sprawdza, czy jakiekolwiek uprawnienia z grupy są wybrane
+    const areSomePermissionsInGroupSelected = (groupPermissions: string[], rolePermissions: string[]): boolean => {
+        return groupPermissions.some(permId => rolePermissions.includes(permId));
+    };
+
     const clearStatusMessage = () => {
         setStatusMessage(null);
     };
@@ -268,6 +385,9 @@ const RoleManagement: React.FC = () => {
                                         </button>
                                     </div>
                                     <div className="role-description">{role.description}</div>
+                                    <div className="role-permission-summary">
+                                        {getRoleExplanation(role)}
+                                    </div>
                                     {role.systemRole && (
                                         <div className="system-role-badge">Rola systemowa</div>
                                     )}
@@ -306,29 +426,38 @@ const RoleManagement: React.FC = () => {
                                 <h4>Uprawnienia:</h4>
 
                                 <div className="permissions-container">
-                                    {Object.entries(groupedPermissions).map(([category, permissions]) => (
+                                    {Object.entries(permissionGroups).map(([category, permissions]) => (
                                         <div key={category} className="permission-category">
-                                            <h5>{category}</h5>
-                                            <ul className="permission-list">
-                                                {permissions.map(permission => (
-                                                    <li key={permission.id} className="permission-item">
+                                            <div className="category-header">
+                                                <h5>{category}</h5>
+                                                <label className="group-checkbox">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={areAllPermissionsInGroupSelected(permissions, newRole.permissions)}
+                                                        onChange={(e) => togglePermissionGroup(permissions, 'new', e.target.checked)}
+                                                        className={areSomePermissionsInGroupSelected(permissions, newRole.permissions) &&
+                                                        !areAllPermissionsInGroupSelected(permissions, newRole.permissions) ? "indeterminate" : ""}
+                                                    />
+                                                    Zaznacz wszystkie
+                                                </label>
+                                            </div>
+                                            <div className="permission-list">
+                                                {permissions.map(permId => (
+                                                    <div key={permId} className="permission-item">
                                                         <div className="permission-checkbox">
                                                             <input
                                                                 type="checkbox"
-                                                                id={`new-${permission.id}`}
-                                                                checked={newRole.permissions.includes(permission.id)}
-                                                                onChange={() => handleTogglePermission(permission.id)}
+                                                                id={`new-${permId}`}
+                                                                checked={newRole.permissions.includes(permId)}
+                                                                onChange={() => handleTogglePermission(permId)}
                                                             />
-                                                            <label htmlFor={`new-${permission.id}`}>
-                                                                {permission.name}
+                                                            <label htmlFor={`new-${permId}`}>
+                                                                {permissionDescriptions[permId] || permId}
                                                             </label>
                                                         </div>
-                                                        <span className="permission-description">
-                                                            {permission.description}
-                                                        </span>
-                                                    </li>
+                                                    </div>
                                                 ))}
-                                            </ul>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -395,7 +524,7 @@ const RoleManagement: React.FC = () => {
                                             rows={3}
                                         ></textarea>
                                     ) : (
-                                        <p>{selectedRole.description}</p>
+                                        <p>{selectedRole.description || "Brak opisu"}</p>
                                     )}
                                 </div>
 
@@ -403,30 +532,41 @@ const RoleManagement: React.FC = () => {
                                     <h4>Uprawnienia:</h4>
 
                                     <div className="permissions-container">
-                                        {Object.entries(groupedPermissions).map(([category, permissions]) => (
+                                        {Object.entries(permissionGroups).map(([category, permissions]) => (
                                             <div key={category} className="permission-category">
-                                                <h5>{category}</h5>
-                                                <ul className="permission-list">
-                                                    {permissions.map(permission => (
-                                                        <li key={permission.id} className="permission-item">
+                                                <div className="category-header">
+                                                    <h5>{category}</h5>
+                                                    {editMode && (
+                                                        <label className="group-checkbox">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={areAllPermissionsInGroupSelected(permissions, selectedRole.permissions)}
+                                                                onChange={(e) => togglePermissionGroup(permissions, 'edit', e.target.checked)}
+                                                                className={areSomePermissionsInGroupSelected(permissions, selectedRole.permissions) &&
+                                                                !areAllPermissionsInGroupSelected(permissions, selectedRole.permissions) ? "indeterminate" : ""}
+                                                            />
+                                                            Zaznacz wszystkie
+                                                        </label>
+                                                    )}
+                                                </div>
+                                                <div className="permission-list">
+                                                    {permissions.map(permId => (
+                                                        <div key={permId} className="permission-item">
                                                             <div className="permission-checkbox">
                                                                 <input
                                                                     type="checkbox"
-                                                                    id={permission.id}
-                                                                    checked={selectedRole.permissions.includes(permission.id)}
-                                                                    onChange={() => editMode && handleTogglePermission(permission.id)}
+                                                                    id={permId}
+                                                                    checked={selectedRole.permissions.includes(permId)}
+                                                                    onChange={() => editMode && handleTogglePermission(permId)}
                                                                     disabled={!editMode}
                                                                 />
-                                                                <label htmlFor={permission.id}>
-                                                                    {permission.name}
+                                                                <label htmlFor={permId} className={!editMode ? "disabled" : ""}>
+                                                                    {permissionDescriptions[permId] || permId}
                                                                 </label>
                                                             </div>
-                                                            <span className="permission-description">
-                                                                {permission.description}
-                                                            </span>
-                                                        </li>
+                                                        </div>
                                                     ))}
-                                                </ul>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>

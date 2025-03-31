@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import axiosInstance from "../utils/axiosInstance";
 import "../styles/FolderGrid.css";
 import ProductCard from "./ProductCard";
-import {UserPermission, UserRole} from "../pages/PermissionManagement";
+import { UserPermission, UserRole } from "../pages/PermissionManagement";
+import { usePermissions } from '../contexts/PermissionContext';
 
 // Interface for folder structure from Nextcloud API
 interface Folder {
@@ -59,6 +60,9 @@ const FolderGrid: React.FC<FolderGridProps> = ({
     // Multi-selection feature states
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
     const [selectionMode, setSelectionMode] = useState<boolean>(false);
+
+    // Kontekst uprawnień
+    const { permissions, hasPermission, canReadFolder, canWriteFolder, canDeleteFolder, canDownloadFolder } = usePermissions();
 
     // Check if user is admin
     const isAdmin = userRole?.name === 'ADMIN';
@@ -472,20 +476,52 @@ const FolderGrid: React.FC<FolderGridProps> = ({
             });
     };
 
+    const hasDownload = (item: any): boolean => {
+        if (!item) return false;
+
+        // Check if permissions are still loading
+        if (permissions.isLoading) {
+            console.log('Permissions still loading in hasDownload function');
+            return false; // Default to false while loading
+        }
+
+        // Administrators always have permissions
+        if (userRole?.name === 'ADMIN') return true;
+
+        // Check global download permission
+        if (hasPermission('files_download')) {
+            console.log('User has global download permission');
+            return true;
+        }
+
+        // Check folder-specific download permissions
+        if (canDownloadFolder && typeof canDownloadFolder === 'function') {
+            const result = canDownloadFolder(item.path);
+            console.log(`Download permission for folder ${item.path}: ${result}`);
+            return result;
+        }
+
+        // Fallback to read permission
+        return hasRead(item);
+    };
+
     // FIXED: Improved delete function with better error handling
     const deleteItem = (item: Folder) => {
+        // Sprawdź uprawnienia przed usunięciem
+        if (!hasDelete(item)) {
+            setActionMessage({ type: 'error', text: `Brak uprawnień do usunięcia ${item.isDirectory ? 'folderu' : 'pliku'}` });
+            return;
+        }
+
         if (!window.confirm(`Czy na pewno chcesz usunąć ${item.isDirectory ? 'folder' : 'plik'} ${item.name}?`)) {
             return;
         }
 
         setActionMessage({ type: 'success', text: `Usuwanie ${item.isDirectory ? 'folderu' : 'pliku'}...` });
 
-        // Encode the path to handle special characters
-        const encodedPath = encodeURIComponent(item.path);
-
         axiosInstance
             .delete(`/nextcloud/files`,  {params:{
-                file:item.path,
+                    file: item.path,
                 }})
             .then(() => {
                 // Remove item from lists
@@ -506,58 +542,66 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                 let errorMessage = "Błąd podczas usuwania";
 
                 if (error.response) {
-                    // The request was made and the server responded with a status code
-                    // that falls out of the range of 2xx
-                    errorMessage += `: ${error.response.data || error.response.status}`;
+                    if (error.response.status === 403) {
+                        errorMessage = `Brak uprawnień do usunięcia ${item.isDirectory ? 'folderu' : 'pliku'}`;
+                    } else {
+                        errorMessage += `: ${error.response.data || error.response.status}`;
+                    }
                 } else if (error.request) {
-                    // The request was made but no response was received
                     errorMessage += ": Brak odpowiedzi z serwera";
                 } else {
-                    // Something happened in setting up the request that triggered an Error
                     errorMessage += `: ${error.message}`;
                 }
 
                 setActionMessage({ type: 'error', text: errorMessage });
             });
     };
-
-    // FIXED: Improved file download function
+// Funkcja do pobierania pliku
     const downloadFile = (item: Folder) => {
+        // Sprawdź uprawnienia przed pobraniem - używamy nowej funkcji hasDownload
+
+        if (permissions.isLoading) {
+            setActionMessage({ type: 'error', text: "Ładowanie uprawnień, spróbuj za chwilę..." });
+            return;
+        }
+
+        if (!hasDownload(item)) {
+            setActionMessage({ type: 'error', text: "Brak uprawnień do pobrania pliku" });
+            return;
+        }
+
         setActionMessage({ type: 'success', text: "Przygotowywanie pliku do pobrania..." });
 
-        // // Encode the path to handle special characters
-        // const encodedPath = encodeURIComponent(item.path);
-
         axiosInstance
-            .get(`/nextcloud/files/download`,  {
+            .get(`/nextcloud/files/download`, {
                 params: {
-                    file:item.path,
+                    file: item.path,
                 },
                 responseType: 'blob'
             })
             .then(response => {
-                // Create a blob from the response data
+                // Utworzenie Blob z danych odpowiedzi
                 const blob = new Blob([response.data], {
                     type: item.contentType || 'application/octet-stream'
                 });
 
-                // Create a download link
+                // Utworzenie URL dla Blob
                 const url = window.URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = url;
                 link.setAttribute('download', item.name);
 
-                // Append to body, click and remove
+                // Symulacja kliknięcia, aby rozpocząć pobieranie
                 document.body.appendChild(link);
                 link.click();
 
-                // Clean up
+                // Czyszczenie po pobraniu
                 setTimeout(() => {
                     document.body.removeChild(link);
                     window.URL.revokeObjectURL(url);
                     setActionMessage({ type: 'success', text: "Plik pobrany pomyślnie" });
 
-                    // Clear message after 3 seconds
+                    // Ukryj komunikat po 3 sekundach
                     setTimeout(() => {
                         setActionMessage(null);
                     }, 3000);
@@ -569,7 +613,11 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                 let errorMessage = "Błąd podczas pobierania pliku";
 
                 if (error.response) {
-                    errorMessage += `: ${error.response.status} - ${error.response.statusText}`;
+                    if (error.response.status === 403) {
+                        errorMessage = "Brak uprawnień do pobrania pliku";
+                    } else {
+                        errorMessage += `: ${error.response.status} - ${error.response.statusText}`;
+                    }
                 } else if (error.request) {
                     errorMessage += ": Brak odpowiedzi z serwera";
                 } else {
@@ -580,26 +628,32 @@ const FolderGrid: React.FC<FolderGridProps> = ({
             });
     };
 
-    // Function to download folder as zip
+// Funkcja do pobierania folderu jako zip
     const downloadFolder = (item: Folder) => {
-        // Display message about preparing download
+
+        if (permissions.isLoading) {
+            setActionMessage({ type: 'error', text: "Ładowanie uprawnień, spróbuj za chwilę..." });
+            return;
+        }
+
+        // Sprawdź uprawnienia przed pobraniem - używamy nowej funkcji hasDownload
+        if (!hasDownload(item)) {
+            setActionMessage({ type: 'error', text: "Brak uprawnień do pobrania folderu" });
+            return;
+        }
+
+        // Wyświetl komunikat o przygotowywaniu pobierania
         setActionMessage({ type: 'success', text: "Przygotowywanie folderu do pobrania..." });
 
-        // // Encode the path to handle special characters
-        // const encodedPath = encodeURIComponent(item.path);
-
         axiosInstance
-            // .get(`/nextcloud/files/${encodedPath}/download-zip`, {
-            //     responseType: 'blob'
-            // })
-            .get(`/nextcloud/files/download-zip`,  {
+            .get(`/nextcloud/files/download-zip`, {
                 params: {
-                    file:item.path,
+                    file: item.path,
                 },
                 responseType: 'blob'
             })
             .then(response => {
-                // Create a download link for the zip file
+                // Utworzenie linku do pobrania pliku zip
                 const url = window.URL.createObjectURL(new Blob([response.data]));
                 const link = document.createElement('a');
                 link.href = url;
@@ -608,16 +662,146 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                 link.click();
                 document.body.removeChild(link);
 
-                // Clear message after successful download
+                // Wyczyść komunikat po udanym pobraniu
                 setTimeout(() => {
                     setActionMessage(null);
                 }, 3000);
             })
             .catch(error => {
                 console.error("Error downloading folder:", error);
-                setActionMessage({ type: 'error', text: "Błąd podczas pobierania folderu" });
+
+                let errorMessage = "Błąd podczas pobierania folderu";
+
+                if (error.response) {
+                    if (error.response.status === 403) {
+                        errorMessage = "Brak uprawnień do pobrania folderu";
+                    } else {
+                        errorMessage += `: ${error.response.status} - ${error.response.statusText}`;
+                    }
+                } else if (error.request) {
+                    errorMessage += ": Brak odpowiedzi z serwera";
+                } else {
+                    errorMessage += `: ${error.message}`;
+                }
+
+                setActionMessage({ type: 'error', text: errorMessage });
             });
     };
+    // // FIXED: Improved file download function
+    // const downloadFile = (item: Folder) => {
+    //     // Sprawdź uprawnienia przed pobraniem
+    //     if (!hasRead(item)) {
+    //         setActionMessage({ type: 'error', text: "Brak uprawnień do pobrania pliku" });
+    //         return;
+    //     }
+    //
+    //     setActionMessage({ type: 'success', text: "Przygotowywanie pliku do pobrania..." });
+    //
+    //     axiosInstance
+    //         .get(`/nextcloud/files/download`,  {
+    //             params: {
+    //                 file: item.path,
+    //             },
+    //             responseType: 'blob'
+    //         })
+    //         .then(response => {
+    //             // Pozostała część funkcji bez zmian
+    //             const blob = new Blob([response.data], {
+    //                 type: item.contentType || 'application/octet-stream'
+    //             });
+    //
+    //             const url = window.URL.createObjectURL(blob);
+    //             const link = document.createElement('a');
+    //             link.href = url;
+    //             link.setAttribute('download', item.name);
+    //
+    //             document.body.appendChild(link);
+    //             link.click();
+    //
+    //             setTimeout(() => {
+    //                 document.body.removeChild(link);
+    //                 window.URL.revokeObjectURL(url);
+    //                 setActionMessage({ type: 'success', text: "Plik pobrany pomyślnie" });
+    //
+    //                 setTimeout(() => {
+    //                     setActionMessage(null);
+    //                 }, 3000);
+    //             }, 100);
+    //         })
+    //         .catch(error => {
+    //             console.error("Error downloading file:", error);
+    //
+    //             let errorMessage = "Błąd podczas pobierania pliku";
+    //
+    //             if (error.response) {
+    //                 if (error.response.status === 403) {
+    //                     errorMessage = "Brak uprawnień do pobrania pliku";
+    //                 } else {
+    //                     errorMessage += `: ${error.response.status} - ${error.response.statusText}`;
+    //                 }
+    //             } else if (error.request) {
+    //                 errorMessage += ": Brak odpowiedzi z serwera";
+    //             } else {
+    //                 errorMessage += `: ${error.message}`;
+    //             }
+    //
+    //             setActionMessage({ type: 'error', text: errorMessage });
+    //         });
+    // };
+    //
+    // // Funkcja do pobierania folderu jako zip
+    // const downloadFolder = (item: Folder) => {
+    //     // Sprawdź uprawnienia przed pobraniem
+    //     if (!hasRead(item)) {
+    //         setActionMessage({ type: 'error', text: "Brak uprawnień do pobrania folderu" });
+    //         return;
+    //     }
+    //
+    //     // Display message about preparing download
+    //     setActionMessage({ type: 'success', text: "Przygotowywanie folderu do pobrania..." });
+    //
+    //     axiosInstance
+    //         .get(`/nextcloud/files/download-zip`,  {
+    //             params: {
+    //                 file: item.path,
+    //             },
+    //             responseType: 'blob'
+    //         })
+    //         .then(response => {
+    //             // Create a download link for the zip file
+    //             const url = window.URL.createObjectURL(new Blob([response.data]));
+    //             const link = document.createElement('a');
+    //             link.href = url;
+    //             link.setAttribute('download', `${item.name}.zip`);
+    //             document.body.appendChild(link);
+    //             link.click();
+    //             document.body.removeChild(link);
+    //
+    //             // Clear message after successful download
+    //             setTimeout(() => {
+    //                 setActionMessage(null);
+    //             }, 3000);
+    //         })
+    //         .catch(error => {
+    //             console.error("Error downloading folder:", error);
+    //
+    //             let errorMessage = "Błąd podczas pobierania folderu";
+    //
+    //             if (error.response) {
+    //                 if (error.response.status === 403) {
+    //                     errorMessage = "Brak uprawnień do pobrania folderu";
+    //                 } else {
+    //                     errorMessage += `: ${error.response.status} - ${error.response.statusText}`;
+    //                 }
+    //             } else if (error.request) {
+    //                 errorMessage += ": Brak odpowiedzi z serwera";
+    //             } else {
+    //                 errorMessage += `: ${error.message}`;
+    //             }
+    //
+    //             setActionMessage({ type: 'error', text: errorMessage });
+    //         });
+    // };
 
     // Function to toggle view mode (grid/list) with localStorage save
     const toggleViewMode = () => {
@@ -666,9 +850,48 @@ const FolderGrid: React.FC<FolderGridProps> = ({
         }
     };
 
-    // Function to download all selected items
+    // // Function to download all selected items
+    // const downloadSelectedItems = () => {
+    //     // If only one item is selected, download it directly
+    //     if (selectedItems.size === 1) {
+    //         const itemPath = Array.from(selectedItems)[0];
+    //         const item = items.find(i => i.path === itemPath);
+    //         if (item) {
+    //             if (item.isDirectory) {
+    //                 downloadFolder(item);
+    //             } else {
+    //                 downloadFile(item);
+    //             }
+    //         }
+    //         return;
+    //     }
+    //
+    //     // For multiple items, inform the user
+    //     setActionMessage({
+    //         type: 'success',
+    //         text: `Przygotowywanie ${selectedItems.size} elementów do pobrania...`
+    //     });
+    //
+    //     // Download items one by one
+    //     const selectedItemsList = filterAndSortItems().filter(item =>
+    //         selectedItems.has(item.path)
+    //     );
+    //
+    //     // Download each item with a delay to avoid browser limitations
+    //     selectedItemsList.forEach((item, index) => {
+    //         setTimeout(() => {
+    //             if (item.isDirectory) {
+    //                 downloadFolder(item);
+    //             } else {
+    //                 downloadFile(item);
+    //             }
+    //         }, index * 1000); // 1 second delay between downloads
+    //     });
+    // };
+
+    // Funkcja do pobierania wielu zaznaczonych elementów
     const downloadSelectedItems = () => {
-        // If only one item is selected, download it directly
+        // Jeśli tylko jeden element jest zaznaczony, pobierz go bezpośrednio
         if (selectedItems.size === 1) {
             const itemPath = Array.from(selectedItems)[0];
             const item = items.find(i => i.path === itemPath);
@@ -682,27 +905,82 @@ const FolderGrid: React.FC<FolderGridProps> = ({
             return;
         }
 
-        // For multiple items, inform the user
+        // Dla wielu elementów, poinformuj użytkownika
         setActionMessage({
             type: 'success',
             text: `Przygotowywanie ${selectedItems.size} elementów do pobrania...`
         });
 
-        // Download items one by one
+        // Utwórz tablicę ścieżek do pobrania
         const selectedItemsList = filterAndSortItems().filter(item =>
             selectedItems.has(item.path)
         );
 
-        // Download each item with a delay to avoid browser limitations
-        selectedItemsList.forEach((item, index) => {
-            setTimeout(() => {
-                if (item.isDirectory) {
-                    downloadFolder(item);
+        const selectedPaths = selectedItemsList.map(item => item.path);
+
+        // Sprawdź uprawnienia przed pobraniem
+        if (permissions.isLoading) {
+            setActionMessage({ type: 'error', text: "Ładowanie uprawnień, spróbuj za chwilę..." });
+            return;
+        }
+
+        // Sprawdź uprawnienia dla wszystkich elementów
+        const hasPermissionForAll = selectedItemsList.every(item => hasDownload(item));
+        if (!hasPermissionForAll) {
+            setActionMessage({ type: 'error', text: "Brak uprawnień do pobrania niektórych wybranych elementów" });
+            return;
+        }
+
+        // Wywołaj endpoint API, który pobierze wiele plików/folderów jako jeden ZIP
+        axiosInstance
+            .post('/nextcloud/files/download-multiple', {
+                paths: selectedPaths
+            }, {
+                responseType: 'blob'
+            })
+            .then(response => {
+                // Utworzenie linku do pobrania pliku zip
+                const url = window.URL.createObjectURL(new Blob([response.data]));
+                const link = document.createElement('a');
+                link.href = url;
+
+                // Użyj nazwy zawierającej liczbę elementów
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                link.setAttribute('download', `wybrane-elementy-${selectedItems.size}-${timestamp}.zip`);
+
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                // Wyczyść komunikat po udanym pobraniu
+                setTimeout(() => {
+                    setActionMessage({ type: 'success', text: "Pobieranie zakończone pomyślnie" });
+
+                    // Ukryj komunikat po 3 sekundach
+                    setTimeout(() => {
+                        setActionMessage(null);
+                    }, 3000);
+                }, 1000);
+            })
+            .catch(error => {
+                console.error("Błąd podczas pobierania wielu elementów:", error);
+
+                let errorMessage = "Błąd podczas pobierania elementów";
+
+                if (error.response) {
+                    if (error.response.status === 403) {
+                        errorMessage = "Brak uprawnień do pobrania wybranych elementów";
+                    } else {
+                        errorMessage += `: ${error.response.status} - ${error.response.statusText}`;
+                    }
+                } else if (error.request) {
+                    errorMessage += ": Brak odpowiedzi z serwera";
                 } else {
-                    downloadFile(item);
+                    errorMessage += `: ${error.message}`;
                 }
-            }, index * 1000); // 1 second delay between downloads
-        });
+
+                setActionMessage({ type: 'error', text: errorMessage });
+            });
     };
 
     // Function to delete all selected items
@@ -772,19 +1050,49 @@ const FolderGrid: React.FC<FolderGridProps> = ({
         });
     };
 
-    const hasDelete = (permissions: UserPermission, item: any): boolean => {
-        console.log(item)
-        if (isAdmin || item.canDelete) {
-            return true;
-        }
-        try {
-            // jeżeli użyttkownik ma odpowiednie role do usuwania lub folder ma odpowiednie role do usuwania
-            return userRole?.permissions?.includes(permissions) as boolean;
-        } catch (e) {
-            console.error("No permissions for this folder or user");
-            return false;
-        }
-    }
+    // Sprawdzenie uprawnień usuwania
+    const hasDelete = (item: any): boolean => {
+        if (!item) return false;
+
+        // Użytkownik admin zawsze ma uprawnienia
+        if (userRole?.name === 'ADMIN') return true;
+
+        // Sprawdź zarówno uprawnienie globalne jak i uprawnienie do własnych plików
+        const hasGlobalDelete = hasPermission("files_delete");
+        const hasOwnDelete = hasPermission("files_delete_own");
+
+        // Sprawdź, czy folder może być usunięty przez tego użytkownika
+        return (hasGlobalDelete || hasOwnDelete) && canDeleteFolder(item.path);
+    };
+
+// Sprawdzenie uprawnień zapisu
+    const hasWrite = (item: any): boolean => {
+        if (!item) return false;
+
+        // Użytkownik admin zawsze ma uprawnienia
+        if (userRole?.name === 'ADMIN') return true;
+
+        // Sprawdź zarówno uprawnienie globalne jak i uprawnienie do własnych plików
+        const hasGlobalWrite = hasPermission("files_write");
+        const hasOwnWrite = hasPermission("files_write_own");
+
+        // Sprawdź, czy folder może być modyfikowany przez tego użytkownika
+        return (hasGlobalWrite || hasOwnWrite) && canWriteFolder(item.path);
+    };
+
+// Sprawdzenie uprawnień odczytu
+    const hasRead = (item: any): boolean => {
+        if (!item) return false;
+
+        // Użytkownik admin zawsze ma uprawnienia
+        if (userRole?.name === 'ADMIN') return true;
+
+        // Sprawdź uprawnienie odczytu
+        const hasReadPerm = hasPermission("files_read");
+
+        // Sprawdź, czy folder może być odczytany przez tego użytkownika
+        return hasReadPerm && canReadFolder(item.path);
+    };
 
     // Render component
     return (
@@ -858,8 +1166,8 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                     </button>
                 )}
 
-                {/* Action buttons - visible only for admin and not in global search mode */}
-                {isAdmin && !isGlobalSearch && (
+                {/* Action buttons - visible only if user has write permissions and not in global search mode */}
+                {hasPermission("files_write") && !isGlobalSearch && parentFolderId && hasWrite({path: parentFolderId}) && (
                     <div className="action-buttons">
                         <button
                             className="action-btn new-folder-btn"
@@ -938,7 +1246,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                             >
                                 {selectedItems.size === 1 ? "Pobierz plik" : "Pobierz wszystkie"}
                             </button>
-                            {hasDelete("files_delete", null) && ( // TODO wróć tutaj i coś wymyśl
+                            {hasPermission("files_delete") && (
                                 <button
                                     className="delete-selected-btn"
                                     onClick={deleteSelectedItems}
@@ -1029,12 +1337,13 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                                 </div>
                                                 <div className="product-actions">
                                                     {item.isDirectory ? (
-                                                        // For folders
+                                                        // Dla folderów
                                                         <>
                                                             <button
                                                                 className="btn-open"
                                                                 onClick={() => {
                                                                     // Jeśli to folder produktowy (i NIE jest oznaczony jako mający dzieci-produkty)
+                                                                    // Zawsze pokazujemy kartę produktu - usunięto sprawdzanie hasRead
                                                                     if (item.isProductFolder && !item.hasChildrenAsProducts) {
                                                                         console.log("This is a product folder, showing product card");
                                                                         setSelectedProductFolder(item.path);
@@ -1052,7 +1361,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                                             >
                                                                 Pobierz
                                                             </button>
-                                                            {hasDelete("files_delete", item) && (
+                                                            {hasDelete(item) && (
                                                                 <button
                                                                     className="btn-delete"
                                                                     onClick={() => deleteItem(item)}
@@ -1070,7 +1379,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                                             >
                                                                 Pobierz
                                                             </button>
-                                                            {hasDelete("files_delete", item) && (
+                                                            {hasDelete(item) && (
                                                                 <button
                                                                     className="btn-delete"
                                                                     onClick={() => deleteItem(item)}
@@ -1143,7 +1452,8 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                                                 <button
                                                                     className="btn-open list-btn"
                                                                     onClick={() => {
-                                                                        if (item.isDirectory) {
+                                                                        // Zawsze pokazujemy kartę produktu dla folderów produktowych - usunięto sprawdzanie hasRead
+                                                                        if (item.isProductFolder && !item.hasChildrenAsProducts) {
                                                                             setSelectedProductFolder(item.path);
                                                                         } else {
                                                                             // Direct redirect with page reload
@@ -1152,7 +1462,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                                                     }}
                                                                     style={{ display: 'inline-block' }}
                                                                 >
-                                                                    Otwórz
+                                                                    {item.isProductFolder && !item.hasChildrenAsProducts ? "Pokaż produkt" : "Otwórz"}
                                                                 </button>
                                                                 <button
                                                                     className="btn-download list-btn"
@@ -1161,7 +1471,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                                                 >
                                                                     Pobierz
                                                                 </button>
-                                                                {hasDelete("files_delete", item) && (
+                                                                {hasDelete(item) && (
                                                                     <button
                                                                         className="btn-delete list-btn"
                                                                         onClick={() => deleteItem(item)}
@@ -1181,7 +1491,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                                                 >
                                                                     Pobierz
                                                                 </button>
-                                                                {hasDelete("files_delete", item) && (
+                                                                {hasDelete(item) && (
                                                                     <button
                                                                         className="btn-delete list-btn"
                                                                         onClick={() => deleteItem(item)}

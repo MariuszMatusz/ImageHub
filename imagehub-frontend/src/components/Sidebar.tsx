@@ -16,8 +16,8 @@ interface SidebarProps {
     setSelectedFolderId: (path: string | null) => void;
     isAdmin: boolean;
     selectedFolderId: string | null;
-    maxFolderDepth?: number; // Opcjonalny prop do konfigurowania maksymalnej głębokości
-    onSearch?: (searchTerm: string) => void; // Nowy prop do obsługi wyszukiwania
+    maxFolderDepth?: number;
+    onSearch?: (searchTerm: string) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -25,8 +25,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                                              setSelectedFolderId,
                                              isAdmin,
                                              selectedFolderId,
-                                             maxFolderDepth = 2, // Domyślna wartość, jeśli nie zostanie przekazana
-                                             onSearch // Nowy prop
+                                             maxFolderDepth = 2,
+                                             onSearch
                                          }) => {
     const [expandedFolders, setExpandedFolders] = useState<string[]>(["Bikes"]);
     const [searchTerm, setSearchTerm] = useState("");
@@ -34,6 +34,35 @@ const Sidebar: React.FC<SidebarProps> = ({
     const [newFolderName, setNewFolderName] = useState("");
     const [isCreatingFolder, setIsCreatingFolder] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+    // Funkcja do spłaszczania struktury folderów - usuwa folder "my-folders" i wyświetla jego zawartość na głównej liście
+    const flattenFolders = (folders: Folder[]): Folder[] => {
+        // Jeśli użytkownik jest adminem, nie modyfikujemy struktury folderów
+        if (isAdmin) {
+            return folders;
+        }
+
+        // Szukamy folderu "my-folders"
+        const myFoldersIndex = folders.findIndex(folder =>
+            folder.name === "my-folders" && folder.isDirectory);
+
+        // Jeśli nie znaleziono folderu "my-folders", zwracamy oryginalne foldery
+        if (myFoldersIndex === -1) {
+            return folders;
+        }
+
+        // Pobieramy dzieci folderu "my-folders"
+        const myFoldersChildren = folders[myFoldersIndex].children || [];
+
+        // Zwracamy nową tablicę folderów - wszystkie foldery poza "my-folders" plus dzieci "my-folders"
+        return [
+            ...folders.filter((_, index) => index !== myFoldersIndex),
+            ...myFoldersChildren
+        ];
+    };
+
+    // Przetwarzamy foldery
+    const processedFolders = flattenFolders(folders);
 
     // Dodajemy opóźnienie wyszukiwania, aby nie wykonywać zapytania po każdym wciśnięciu klawisza
     useEffect(() => {
@@ -72,9 +101,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         }
     }, [selectedFolderId]);
 
-    /**
-     * Rozwijanie folderu po kliknięciu w ikonę (strzałkę).
-     */
+    // Rozwijanie folderu po kliknięciu w ikonę (strzałkę).
     const toggleFolder = (folderPath: string, event: React.MouseEvent) => {
         event.stopPropagation(); // Zapobiega wywołaniu handleFolderClick
         setExpandedFolders((prev) =>
@@ -84,16 +111,12 @@ const Sidebar: React.FC<SidebarProps> = ({
         );
     };
 
-    /**
-     * Obsługa kliknięcia w nazwę folderu – ustawiamy wybrany folder.
-     */
+    // Obsługa kliknięcia w nazwę folderu – ustawiamy wybrany folder.
     const handleFolderClick = (folderPath: string) => {
         setSelectedFolderId(folderPath);
     };
 
-    /**
-     * Sprawdza, czy folder jest aktywny (bezpośrednio zaznaczony lub zawiera zaznaczony folder)
-     */
+    // Sprawdza, czy folder jest aktywny (bezpośrednio zaznaczony lub zawiera zaznaczony folder)
     const isFolderActive = (folderPath: string): boolean => {
         if (!selectedFolderId) return false;
 
@@ -106,9 +129,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         return false;
     };
 
-    /**
-     * Funkcja do tworzenia nowego folderu w głównym katalogu
-     */
+    // Funkcja do tworzenia nowego folderu w głównym katalogu
     const createRootFolder = () => {
         if (!newFolderName.trim()) {
             setErrorMessage("Nazwa folderu nie może być pusta");
@@ -144,11 +165,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         setSearchTerm(e.target.value);
     };
 
-    /**
-     * Funkcja rekurencyjna do renderowania folderów i podfolderów z ograniczoną głębokością.
-     * @param folder Folder do wyrenderowania
-     * @param level Aktualny poziom zagnieżdżenia (0 dla folderów głównych)
-     */
+    // Funkcja rekurencyjna do renderowania folderów i podfolderów z ograniczoną głębokością.
     const renderFolder = (folder: Folder, level: number = 0) => {
         // Wyświetlamy tylko foldery
         if (!folder.isDirectory) return null;
@@ -190,10 +207,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         );
     };
 
-    /**
-     * Filtrowanie folderów na podstawie wpisanego tekstu.
-     */
-    const filteredFolders = folders.filter((folder) =>
+    // Filtrowanie folderów na podstawie wpisanego tekstu.
+    const filteredFolders = processedFolders.filter((folder) =>
         folder.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 

@@ -34,6 +34,7 @@ public class RoleService {
         adminPermissions.add("files_read");
         adminPermissions.add("files_write");
         adminPermissions.add("files_delete");
+        adminPermissions.add("files_download");
         adminPermissions.add("users_read");
         adminPermissions.add("users_write");
         adminPermissions.add("users_delete");
@@ -46,6 +47,7 @@ public class RoleService {
         userPermissions.add("files_read");
         userPermissions.add("files_write_own");
         userPermissions.add("files_delete_own");
+        userPermissions.add("files_download");
 
         // Utwórz rolę ADMIN jeśli nie istnieje
         if (!roleRepository.existsByName("ADMIN")) {

@@ -141,16 +141,20 @@ const UserManagement: React.FC = () => {
                 throw new Error("Nie wybrano właściwej roli");
             }
 
-            // Przygotuj dane zachowując strukturę obecnego użytkownika
-            const updateData = {
+            const updateData: any = {
                 username: editedUser.username,
                 email: editedUser.email,
-                role: selectedRole,
-                // Zawsze wysyłamy hasło
-                password: editedUser.password || "dummy_password" // Wartość zastępcza, jeśli nie zmieniono hasła
+                role: selectedRole
             };
 
+// Dodaj hasło tylko jeśli zostało wprowadzone
+            if (editedUser.password && editedUser.password.trim() !== '') {
+                updateData.password = editedUser.password;
+            }
+
             console.log("Dane wysyłane do API:", updateData);
+
+
 
             await axiosInstance.put(`/users/${id}`, updateData);
             setStatusMessage({

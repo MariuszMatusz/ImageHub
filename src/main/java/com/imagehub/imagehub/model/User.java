@@ -88,9 +88,12 @@ public class User {
         this.role = role;
     }
 
-    // Metoda pomocnicza do sprawdzania uprawnień
+    /**
+     * Sprawdza, czy użytkownik ma określone uprawnienie w swojej roli
+     */
     public boolean hasPermission(String permission) {
-        return role != null && role.hasPermission(permission);
+        if (role == null) return false;
+        return role.getPermissions().contains(permission);
     }
 
     // Metoda pomocnicza do sprawdzania, czy użytkownik ma rolę o danej nazwie

@@ -31,45 +31,82 @@ public class SecurityConfig {
         return authenticationConfiguration.getAuthenticationManager();
     }
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtFilter jwtFilter) throws Exception {
-        logger.info("🔹 Security configuration initialized!");
+//    @Bean
+//    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtFilter jwtFilter) throws Exception {
+//        logger.info("🔹 Security configuration initialized!");
+//
+//        http
+//                .cors(cors -> cors.configurationSource(new CorsConfig().corsConfigurationSource()))
+//                .csrf(csrf -> csrf.disable())
+//                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+//                .authorizeHttpRequests(auth -> auth
+//                        .requestMatchers("/api/auth/login", "/api/auth/register", "/error").permitAll()
+//
+//                        // User endpoints
+//                        .requestMatchers("/api/users/me").authenticated()
+//                        .requestMatchers("/api/users/**").hasRole(ROLE_ADMIN)
+//
+//                        // Role management endpoints
+//                        .requestMatchers("/api/roles/**").hasRole(ROLE_ADMIN)
+//
+//                        // Folder permissions endpoints
+//                        .requestMatchers("/api/folder-permissions/my").hasAnyRole(ROLE_USER, ROLE_ADMIN)
+//                        .requestMatchers("/api/folder-permissions/**").hasRole(ROLE_ADMIN)
+//
+//                        // Nextcloud API endpoints - teraz każdy z użytkowników ma dostęp zgodnie z uprawnieniami
+//                        .requestMatchers(HttpMethod.GET, "/api/nextcloud/files").authenticated()
+////                        .requestMatchers(HttpMethod.GET, "/api/nextcloud/files").hasAnyRole(ROLE_USER, ROLE_ADMIN)
+////                        .requestMatchers(HttpMethod.GET, "/api/nextcloud/my-folders").hasAnyRole(ROLE_USER, ROLE_ADMIN)
+//                        .requestMatchers(HttpMethod.GET, "/api/nextcloud/my-folders").authenticated()
+//                        .requestMatchers(HttpMethod.GET, "/api/nextcloud/files/**").hasAnyRole(ROLE_USER, ROLE_ADMIN)
+//                        .requestMatchers(HttpMethod.POST, "/api/nextcloud/upload").hasAnyRole(ROLE_USER, ROLE_ADMIN)
+//                        .requestMatchers(HttpMethod.POST, "/api/nextcloud/directory").hasAnyRole(ROLE_USER, ROLE_ADMIN)
+//                        .requestMatchers(HttpMethod.DELETE, "/api/nextcloud/files/**").hasAnyRole(ROLE_USER, ROLE_ADMIN)
+//
+//                        .anyRequest().authenticated()
+//                )
+//                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+//
+//        logger.info("🔹 JwtFilter added before UsernamePasswordAuthenticationFilter");
+//        logger.info("🔹 Nextcloud API security configured with permission-based access");
+//
+//        return http.build();
+//    }
 
-        http
-                .cors(cors -> cors.configurationSource(new CorsConfig().corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login", "/api/auth/register", "/error").permitAll()
+@Bean
+public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtFilter jwtFilter) throws Exception {
+    logger.info("🔹 Security configuration initialized!");
 
-                        // User endpoints
-                        .requestMatchers("/api/users/me").authenticated()
-                        .requestMatchers("/api/users/**").hasRole(ROLE_ADMIN)
+    http
+            .cors(cors -> cors.configurationSource(new CorsConfig().corsConfigurationSource()))
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                    .requestMatchers("/api/auth/login", "/api/auth/register", "/error").permitAll()
 
-                        // Role management endpoints
-                        .requestMatchers("/api/roles/**").hasRole(ROLE_ADMIN)
+                    // User endpoints
+                    .requestMatchers("/api/users/me", "/api/users/me/permissions").authenticated()
+                    .requestMatchers("/api/users/**").hasRole(ROLE_ADMIN)
 
-                        // Folder permissions endpoints
-                        .requestMatchers("/api/folder-permissions/my").hasAnyRole(ROLE_USER, ROLE_ADMIN)
-                        .requestMatchers("/api/folder-permissions/**").hasRole(ROLE_ADMIN)
+                    // Role management endpoints
+                    .requestMatchers("/api/roles/**").hasRole(ROLE_ADMIN)
 
-                        // Nextcloud API endpoints - teraz każdy z użytkowników ma dostęp zgodnie z uprawnieniami
-                        .requestMatchers(HttpMethod.GET, "/api/nextcloud/files").authenticated()
-//                        .requestMatchers(HttpMethod.GET, "/api/nextcloud/files").hasAnyRole(ROLE_USER, ROLE_ADMIN)
-//                        .requestMatchers(HttpMethod.GET, "/api/nextcloud/my-folders").hasAnyRole(ROLE_USER, ROLE_ADMIN)
-                        .requestMatchers(HttpMethod.GET, "/api/nextcloud/my-folders").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/nextcloud/files/**").hasAnyRole(ROLE_USER, ROLE_ADMIN)
-                        .requestMatchers(HttpMethod.POST, "/api/nextcloud/upload").hasAnyRole(ROLE_USER, ROLE_ADMIN)
-                        .requestMatchers(HttpMethod.POST, "/api/nextcloud/directory").hasAnyRole(ROLE_USER, ROLE_ADMIN)
-                        .requestMatchers(HttpMethod.DELETE, "/api/nextcloud/files/**").hasAnyRole(ROLE_USER, ROLE_ADMIN)
+                    // Folder permissions endpoints
+                    .requestMatchers("/api/folder-permissions/my").authenticated()
+                    .requestMatchers("/api/folder-permissions/**").hasRole(ROLE_ADMIN)
 
-                        .anyRequest().authenticated()
-                )
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                    // Nextcloud API endpoints - zmienione na authenticated() dla elastyczności
+                    // Szczegółowa logika uprawnień będzie sprawdzona na poziomie kontrolera
+                    .requestMatchers("/api/nextcloud/**").authenticated()
 
-        logger.info("🔹 JwtFilter added before UsernamePasswordAuthenticationFilter");
-        logger.info("🔹 Nextcloud API security configured with permission-based access");
+                    .anyRequest().authenticated()
+            )
+            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
-        return http.build();
-    }
+    logger.info("🔹 JwtFilter added before UsernamePasswordAuthenticationFilter");
+    logger.info("🔹 Nextcloud API security configured with permission-based access");
+
+    return http.build();
+}
+
 }
