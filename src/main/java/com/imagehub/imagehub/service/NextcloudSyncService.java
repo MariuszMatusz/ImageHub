@@ -40,7 +40,7 @@ public class NextcloudSyncService {
     /**
      * Zaplanowane zadanie synchronizacji z Nextcloud co 15 sekund
      */
-    @Scheduled(fixedRate = 1500000) // 15 sekund w milisekundach
+    @Scheduled(fixedRate = 15000) // 15 sekund w milisekundach
     public void scheduledSync() {
         // Jeśli synchronizacja jest już w trakcie lub było zbyt wiele błędów, pomijamy
         if (synchronizationInProgress) {

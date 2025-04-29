@@ -56,7 +56,8 @@ const FolderGrid: React.FC<FolderGridProps> = ({
         return (savedViewMode === "list" || savedViewMode === "grid") ? savedViewMode : "grid";
     });
     const [selectedProductFolder, setSelectedProductFolder] = useState<string | null>(null);
-
+    const [productImages, setProductImages] = useState<Record<string, string>>({});
+    const [productImageUrls, setProductImageUrls] = useState<Record<string, string | null>>({});
     // Multi-selection feature states
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
     const [selectionMode, setSelectionMode] = useState<boolean>(false);
@@ -196,6 +197,56 @@ const FolderGrid: React.FC<FolderGridProps> = ({
         }
     }, [showCurrentFolder, allItems, isGlobalSearch]);
 
+    // Efekt do pobierania obrazków dla folderów produktowych
+    useEffect(() => {
+        const fetchProductImages = async () => {
+            const productFolders = items.filter(item => item.isDirectory && item.isProductFolder);
+
+            for (const folder of productFolders) {
+                if (!productImages[folder.path]) {
+                    const imageUrl = await fetchFirstProductImage(folder.path);
+                    setProductImages(prev => ({
+                        ...prev,
+                        [folder.path]: imageUrl || '/placeholder-product.png'
+                    }));
+                }
+            }
+        };
+
+        if (items.length > 0) {
+            fetchProductImages();
+        }
+    }, [items]);
+
+    // Efekt do pobierania obrazków dla folderów produktowych
+    useEffect(() => {
+        const loadProductImages = async () => {
+            // Pobieraj obrazy tylko dla folderów produktowych
+            const productFolders = items.filter(item =>
+                item.isDirectory && item.isProductFolder && !item.hasChildrenAsProducts
+            );
+
+            for (const folder of productFolders) {
+                if (!productImageUrls[folder.path]) {
+                    const imageUrl = await fetchFirstProductImage(folder.path);
+                    // Jeśli znajdziemy obraz, już w fetchFirstProductImage aktualizujemy stan
+                }
+            }
+        };
+
+        if (items.length > 0) {
+            loadProductImages();
+        }
+
+        // Cleanup przy odmontowaniu komponentu
+        return () => {
+            // Wyczyść wszystkie URL-e przy odmontowaniu
+            Object.values(productImageUrls).forEach(url => {
+                if (url) URL.revokeObjectURL(url);
+            });
+        };
+    }, [items]);
+
     // Functions for handling custom scrollbar
     const updateScrollThumbHeight = () => {
         if (!scrollAreaRef.current || !scrollTrackRef.current) return;
@@ -302,6 +353,8 @@ const FolderGrid: React.FC<FolderGridProps> = ({
         document.removeEventListener('mousemove', handleDocumentMouseMove);
         document.removeEventListener('mouseup', handleDocumentMouseUp);
     };
+
+
 
     // Effect initializing scrollbar
     useEffect(() => {
@@ -1093,6 +1146,100 @@ const FolderGrid: React.FC<FolderGridProps> = ({
         // Sprawdź, czy folder może być odczytany przez tego użytkownika
         return hasReadPerm && canReadFolder(item.path);
     };
+    const imageCache = new Map<string, string>();
+    // Funkcja do pobierania pierwszego zdjęcia z podfolderu produktu
+    const fetchFirstProductImage = async (folderPath: string): Promise<string | null> => {
+        // Sprawdź, czy mamy już w cache
+        if (productImageUrls[folderPath]) {
+            return productImageUrls[folderPath];
+        }
+
+        try {
+            // Funkcja pomocnicza do rekurencyjnego przeszukiwania folderów
+            const findFirstImageInFolder = async (path: string, maxDepth: number = 3, currentDepth: number = 0): Promise<string | null> => {
+                if (currentDepth > maxDepth) return null;
+
+                try {
+                    // Pobierz zawartość folderu
+                    const response = await axiosInstance.get(`/nextcloud/files`, {
+                        params: {
+                            path: path,
+                            includeChildren: false,
+                            depth: 1,
+                        }
+                    });
+
+                    // Sprawdź czy mamy tablicę
+                    const items = Array.isArray(response.data) ? response.data : [];
+
+                    // Najpierw szukaj plików obrazów w bieżącym folderze
+                    const imageFile = items.find(item =>
+                        item &&
+                        !item.isDirectory &&
+                        item.contentType &&
+                        item.contentType.startsWith('image/')
+                    );
+
+                    if (imageFile) {
+                        // Znaleziono obraz, pobierz go jako URL
+                        return await fetchImageAsDataUrl(imageFile.path);
+                    }
+
+                    // Jeśli nie znaleziono obrazu, przeszukaj podfoldery
+                    for (const item of items) {
+                        if (item && item.isDirectory) {
+                            const imageUrl = await findFirstImageInFolder(item.path, maxDepth, currentDepth + 1);
+                            if (imageUrl) return imageUrl;
+                        }
+                    }
+
+                    return null;
+                } catch (error) {
+                    console.error(`Błąd podczas przeszukiwania folderu ${path}:`, error);
+                    return null;
+                }
+            };
+
+            // Rozpocznij przeszukiwanie od głównego folderu
+            const imageUrl = await findFirstImageInFolder(folderPath);
+
+            // Jeśli znaleziono obraz, zapisz w cache
+            if (imageUrl) {
+                setProductImageUrls(prev => ({
+                    ...prev,
+                    [folderPath]: imageUrl
+                }));
+                return imageUrl;
+            }
+
+            return null;
+        } catch (error) {
+            console.error(`Błąd podczas szukania obrazu dla ${folderPath}:`, error);
+            return null;
+        }
+    };
+
+    // Funkcja do pobierania obrazu jako URL danych
+    const fetchImageAsDataUrl = async (imagePath: string): Promise<string | null> => {
+        if (!imagePath) return null;
+
+        try {
+            // Używaj axiosInstance, które już zawiera nagłówki autoryzacji
+            const response = await axiosInstance.get(`/nextcloud/files/download`, {
+                params: {
+                    file: imagePath
+                },
+                responseType: 'blob'
+            });
+
+            // Konwertuj blob na obiekt URL
+            const blobUrl = URL.createObjectURL(response.data);
+            return blobUrl;
+        } catch (error) {
+            console.error("Błąd podczas pobierania obrazu:", error, imagePath);
+            return null;
+        }
+    };
 
     // Render component
     return (
@@ -1313,13 +1460,30 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                                     />
                                                 </div>
                                             )}
+                                            {/*<div className="product-image">*/}
+                                            {/*    {item.isDirectory ? (*/}
+                                            {/*        <img src="/placeholder-folder.png" alt="Folder" className="folder-img" />*/}
+                                            {/*    ) : (*/}
+                                            {/*        <img src="/placeholder-image.png" alt="Product" />*/}
+                                            {/*    )}*/}
+                                            {/*</div>*/}
+
                                             <div className="product-image">
                                                 {item.isDirectory ? (
-                                                    <img src="/placeholder-folder.png" alt="Folder" className="folder-img" />
+                                                    item.isProductFolder ? (
+                                                        <img
+                                                            src={productImageUrls[item.path] || "/placeholder-product.png"}
+                                                            alt="Product"
+                                                            className="product-img"
+                                                        />
+                                                    ) : (
+                                                        <img src="/placeholder-folder.png" alt="Folder" className="folder-img" />
+                                                    )
                                                 ) : (
                                                     <img src="/placeholder-image.png" alt="Product" />
                                                 )}
                                             </div>
+
                                             <div className="product-details">
                                                 <h3 className="product-name">
                                                     {item.name}
@@ -1426,9 +1590,19 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                                 )}
                                                 <td className="list-item-icon">
                                                     {item.isDirectory ? (
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                                                        </svg>
+                                                        item.isProductFolder ? (
+                                                            <div className="list-item-thumbnail">
+                                                                <img
+                                                                    src={productImageUrls[item.path] || "/placeholder-product.png"}
+                                                                    alt="Product"
+                                                                    className="product-thumb"
+                                                                />
+                                                            </div>
+                                                        ) : (
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                                                            </svg>
+                                                        )
                                                     ) : (
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
