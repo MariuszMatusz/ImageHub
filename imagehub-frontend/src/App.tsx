@@ -22,7 +22,7 @@ const App: React.FC = () => {
                     <Route path="/" element={<Login />} />
                     <Route path="/forgot-password" element={<ForgotPassword />} />
 
-                    {/* Podejście z zagnieżdżonymi ścieżkami */}
+                    {/* Zagnieżdżone ścieżki */}
                     <Route element={<ProtectedRoute />}>
                         <Route path="/dashboard" element={<Dashboard />} />
                         <Route path="/user-panel" element={<UserPanel />} />

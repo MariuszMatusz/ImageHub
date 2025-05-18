@@ -1,8 +1,7 @@
-/* Ta struktura CSS jest wzorowana na AdminPanel.css, ale z nazwami klas dostosowanymi do UserPanel */
 
 .user-panel-container {
     display: flex;
-    height: calc(100vh - 70px); /* Odejmujemy wysokość nawigacji */
+    height: calc(100vh - 70px);
     width: 100%;
 }
 
@@ -77,7 +76,6 @@
     overflow-y: auto;
 }
 
-/* Style dla kontenerów w zakładkach */
 .my-images-container, .settings-container {
     padding: 20px;
     background-color: #ffffff;
@@ -91,7 +89,6 @@
     font-size: 1.5rem;
 }
 
-/* Media queries dla responsywności */
 @media (max-width: 768px) {
     .user-panel-container {
         flex-direction: column;

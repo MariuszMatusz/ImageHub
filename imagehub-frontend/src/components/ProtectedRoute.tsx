@@ -63,7 +63,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         };
 
         // Jeśli uprawnienia są jeszcze ładowane, poczekaj na nie
-        // chyba że nie sprawdzamy uprawnienia, wtedy kontynuuj od razu
+
         if (!requiredPermission || !permissions.isLoading) {
             checkAuthorization();
         }

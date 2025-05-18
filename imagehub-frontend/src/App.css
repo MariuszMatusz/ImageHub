@@ -40,8 +40,8 @@
     transform: rotate(360deg);
   }
 }
-/* Zapewnia, że treść nie nachodzi na navbar i footer */
+
 .content {
-  min-height: calc(100vh - 100px); /* Odejmujemy wysokość navbaru i footera */
-  padding-top: 20px; /* Dodatkowy odstęp */
+  min-height: calc(100vh - 100px);
+  padding-top: 20px;
 }

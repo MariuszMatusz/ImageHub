@@ -173,30 +173,6 @@ public class NextcloudSyncService {
     }
 
     /**
-     * Sprawdź, czy zasób jest ukryty (np. folder admin w katalogu głównym)
-     */
-    private boolean isHiddenResource(String parentPath, String resourceName) {
-        // Ukryj folder "admin" w katalogu głównym
-        if (parentPath.isEmpty() && HIDDEN_FOLDERS.contains(resourceName)) {
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Zbuduj pełną ścieżkę z ścieżki rodzica i nazwy zasobu
-     */
-    private String buildFullPath(String parentPath, String resourceName) {
-        if (parentPath.isEmpty()) {
-            return resourceName;
-        } else if (parentPath.endsWith("/")) {
-            return parentPath + resourceName;
-        } else {
-            return parentPath + "/" + resourceName;
-        }
-    }
-
-    /**
      * Pobierz cache'owaną zawartość folderu, upewniając się, że ukryte foldery są filtrowane
      */
     public List<Map<String, Object>> getCachedFolderContents(String path) {
@@ -248,6 +224,30 @@ public class NextcloudSyncService {
         }
     }
 
+    /**
+     * Sprawdź, czy zasób jest ukryty (np. folder admin w katalogu głównym)
+     */
+    private boolean isHiddenResource(String parentPath, String resourceName) {
+        // Ukryj folder "admin" w katalogu głównym
+        if (parentPath.isEmpty() && HIDDEN_FOLDERS.contains(resourceName)) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Zbuduj pełną ścieżkę z ścieżki rodzica i nazwy zasobu
+     */
+    private String buildFullPath(String parentPath, String resourceName) {
+        if (parentPath.isEmpty()) {
+            return resourceName;
+        } else if (parentPath.endsWith("/")) {
+            return parentPath + resourceName;
+        } else {
+            return parentPath + "/" + resourceName;
+        }
+    }
+    
     /**
      * Sprawdź, czy synchronizacja jest aktywna
      */

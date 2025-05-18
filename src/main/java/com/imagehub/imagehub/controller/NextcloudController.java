@@ -40,7 +40,6 @@ public class NextcloudController {
     }
 
     @GetMapping("/files")
-//    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Map<String, Object>>> listFiles(
             @RequestParam(defaultValue = "") String path,
@@ -71,7 +70,6 @@ public class NextcloudController {
 
     @GetMapping("/my-folders")
     @PreAuthorize("isAuthenticated()")
-//    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<List<Map<String, Object>>> listMyFolders(@AuthenticationPrincipal User currentUser) {
         logger.info("Received request to list My Folders");
         try {
@@ -111,13 +109,13 @@ public class NextcloudController {
                 String folderName = (String) folder.get("name");
                 String folderPath = (String) folder.get("path");
 
-                // Usuń duplikaty bezpośrednich dzieci
+                // Usuń duplikaty bezpośrednich podfolderów
                 removeDuplicateDirectChildren(folder, children);
 
-                // Rekurencyjnie przetwarzaj pozostałe dzieci
+                // Rekurencyjnie przetwarzaj pozostałe podfoldery
                 removeDuplicateFolders(children);
 
-                // Dla każdego dziecka, sprawdź czy jego dzieci nie są duplikatami
+                // Dla każdego podfolderu, sprawdź czy jego podfolder nie jest duplikatem
                 for (Map<String, Object> child : new ArrayList<>(children)) {
                     @SuppressWarnings("unchecked")
                     List<Map<String, Object>> grandchildren = (List<Map<String, Object>>) child.get("children");
@@ -126,7 +124,7 @@ public class NextcloudController {
                         String childName = (String) child.get("name");
                         String childPath = (String) child.get("path");
 
-                        // Usuń duplikaty wnuków
+                        // Usuń duplikaty podfolderów
                         removeDuplicateDirectChildren(child, grandchildren);
                     }
                 }
@@ -135,7 +133,7 @@ public class NextcloudController {
     }
 
     /**
-     * Usuwa bezpośrednie dzieci, które są duplikatami rodzica
+     * Usuwa bezpośrednie podfoldery dzieci, które są duplikatami folderu rodzica
      */
     private void removeDuplicateDirectChildren(Map<String, Object> parent, List<Map<String, Object>> children) {
         if (children == null || children.isEmpty()) {
@@ -152,10 +150,10 @@ public class NextcloudController {
             String childName = (String) child.get("name");
             String childPath = (String) child.get("path");
 
-            // Wykryj duplikat: jeśli nazwa dziecka jest taka sama jak nazwa rodzica
-            // i ścieżka dziecka jest podścieżką rodzica (np. "Bikes/Bikes")
+            //  jeśli nazwa podfolderu jest taka sama jak nazwa folderu
+            // i ścieżka podfolderu jest podścieżką folderu (np. "Bikes/Bikes")
             if (parentName.equals(childName) && childPath.equals(parentPath + "/" + childName)) {
-                // Pobierz dzieci duplikatu przed jego usunięciem
+                // Pobierz podfodlery duplikatu przed jego usunięciem
                 @SuppressWarnings("unchecked")
                 List<Map<String, Object>> grandchildren = (List<Map<String, Object>>) child.get("children");
 
@@ -163,7 +161,7 @@ public class NextcloudController {
                 iterator.remove();
                 logger.debug("Removed duplicate folder: {} (path: {})", childName, childPath);
 
-                // Przenieś dzieci usuniętego duplikatu do rodzica, jeśli istnieją
+                // Przenieś podfoldery usuniętego duplikatu do folderu rodzica, jeśli istnieją
                 if (grandchildren != null && !grandchildren.isEmpty()) {
                     children.addAll(grandchildren);
                     logger.debug("Moved {} grandchildren to parent folder", grandchildren.size());
@@ -172,79 +170,6 @@ public class NextcloudController {
         }
     }
 
-////    @GetMapping("/files/{path:.+}")
-//@GetMapping("/files/download")
-////@PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-//@PreAuthorize("isAuthenticated()")
-////@PreAuthorize("hasAuthority('files_read')")
-//public ResponseEntity<byte[]> downloadFile(
-//        @RequestParam("file") String path,
-//        @AuthenticationPrincipal User currentUser) {
-//    try {
-//        logger.info("Otrzymano żądanie pobrania pliku: {} przez użytkownika: {}", path, currentUser.getUsername());
-//        byte[] fileContent = nextcloudService.downloadFile(path, currentUser);
-//
-//        // Pobierz nazwę pliku z ścieżki
-//        String fileName = path.substring(path.lastIndexOf('/') + 1);
-//        if (fileName.isEmpty()) {
-//            fileName = "file";
-//        }
-//
-//        return ResponseEntity.ok()
-//                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-//                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
-//                .body(fileContent);
-//    } catch (SecurityException e) {
-//        logger.warn("Naruszenie bezpieczeństwa: {} dla pliku {} przez użytkownika {}",
-//                e.getMessage(), path, currentUser.getUsername());
-//        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-//                .body(null);
-//    } catch (Exception e) {
-//        logger.error("Błąd podczas pobierania pliku {}: {}", path, e.getMessage(), e);
-//        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                .body(null);
-//    }
-//}
-//
-//    @GetMapping("/files/download-zip")
-////    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-//    @PreAuthorize("isAuthenticated()")
-////    @PreAuthorize("hasAuthority('files_read')")
-//    public ResponseEntity<byte[]> downloadFolderAsZip(
-//            @RequestParam("file") String folderPath,
-//            @AuthenticationPrincipal User currentUser) {
-//        try {
-//            logger.info("Otrzymano żądanie pobrania folderu jako zip: {} przez użytkownika: {}",
-//                    folderPath, currentUser.getUsername());
-//
-//            // Zamiast bezpośredniego odwołania do folderPermissionService, używamy nextcloudService
-//            // Sprawdzanie uprawnień zostanie wykonane wewnątrz metody createZipFromFolder
-//
-//            // Wygeneruj zip z folderu
-//            byte[] zipData = nextcloudService.createZipFromFolder(folderPath, currentUser);
-//
-//            // Aby użyć extractLastPathSegment, możesz albo dodać tę metodę do kontrolera,
-//            // albo użyć istniejącej metody z nextcloudService
-//            String folderName = folderPath.substring(folderPath.lastIndexOf('/') + 1);
-//            if (folderName.isEmpty()) {
-//                folderName = "file";
-//            }
-//
-//            return ResponseEntity.ok()
-//                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
-//                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + folderName + ".zip\"")
-//                    .body(zipData);
-//        } catch (SecurityException e) {
-//            logger.warn("Naruszenie bezpieczeństwa: {} dla folderu {} przez użytkownika {}",
-//                    e.getMessage(), folderPath, currentUser.getUsername());
-//            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-//                    .body(null);
-//        } catch (Exception e) {
-//            logger.error("Błąd podczas tworzenia zip dla folderu {}: {}", folderPath, e.getMessage(), e);
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                    .body(null);
-//        }
-//    }
 
     @PostMapping("/upload")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
@@ -290,33 +215,7 @@ public class NextcloudController {
         }
     }
 
-//    @DeleteMapping("/files")
-////    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-//    @PreAuthorize("isAuthenticated()")
-////    @PreAuthorize("hasAuthority('files_delete') or hasAuthority('files_delete_own')")
-//    public ResponseEntity<String> deleteFile(
-//            @RequestParam ("file") String path,
-//            @AuthenticationPrincipal User currentUser) {
-//        try {
-//            logger.info("Controler 1");
-//            logger.info("Received request to delete resource: {} by user: {}", path, currentUser.getUsername());
-//            nextcloudService.delete(path, currentUser);
-//            logger.info("Controler 2");
-//            return ResponseEntity.ok("Element został usunięty pomyślnie");
-//        } catch (SecurityException e) {
-//            logger.warn("Security violation: {} for deleting {} by user {}",
-//                    e.getMessage(), path, currentUser.getUsername());
-//            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-//                    .body("Brak uprawnień do usunięcia tego elementu");
-//        } catch (Exception e) {
-//            logger.error("Error deleting resource {}: {}", path, e.getMessage(), e);
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                    .body("Błąd podczas usuwania: " + e.getMessage());
-//        }
-//    }
 
-
-// Zmodyfikuj następujące endpointy w NextcloudController.java:
 
 @GetMapping("/files/download")
 @PreAuthorize("isAuthenticated()")
@@ -400,7 +299,6 @@ public ResponseEntity<byte[]> downloadFile(
     }
 
 
-    // Dodaj nowy endpoint w klasie NextcloudController
     @PostMapping("/files/download-multiple")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<byte[]> downloadMultipleFiles(
@@ -444,86 +342,6 @@ public ResponseEntity<byte[]> downloadFile(
     }
 
 
-//@GetMapping("/files/download")
-//@PreAuthorize("isAuthenticated()")
-//public ResponseEntity<byte[]> downloadFile(
-//        @RequestParam("file") String path,
-//        @AuthenticationPrincipal User currentUser) {
-//    try {
-//        logger.info("Otrzymano żądanie pobrania pliku: {} przez użytkownika: {}", path, currentUser.getUsername());
-//
-//        // Sprawdź uprawnienia do odczytu - teraz korzystamy z uproszczonej logiki
-//        if (!folderPermissionService.canUserReadFolder(currentUser, path)) {
-//            logger.warn("Brak uprawnień do odczytu pliku {} dla użytkownika {}",
-//                    path, currentUser.getUsername());
-//            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-//                    .body(null);
-//        }
-//
-//        byte[] fileContent = nextcloudService.downloadFile(path, currentUser);
-//
-//        // Pobierz nazwę pliku z ścieżki
-//        String fileName = path.substring(path.lastIndexOf('/') + 1);
-//        if (fileName.isEmpty()) {
-//            fileName = "file";
-//        }
-//
-//        return ResponseEntity.ok()
-//                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-//                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
-//                .body(fileContent);
-//    } catch (SecurityException e) {
-//        logger.warn("Naruszenie bezpieczeństwa: {} dla pliku {} przez użytkownika {}",
-//                e.getMessage(), path, currentUser.getUsername());
-//        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-//                .body(null);
-//    } catch (Exception e) {
-//        logger.error("Błąd podczas pobierania pliku {}: {}", path, e.getMessage(), e);
-//        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                .body(null);
-//    }
-//}
-//
-//    @GetMapping("/files/download-zip")
-//    @PreAuthorize("isAuthenticated()")
-//    public ResponseEntity<byte[]> downloadFolderAsZip(
-//            @RequestParam("file") String folderPath,
-//            @AuthenticationPrincipal User currentUser) {
-//        try {
-//            logger.info("Otrzymano żądanie pobrania folderu jako zip: {} przez użytkownika: {}",
-//                    folderPath, currentUser.getUsername());
-//
-//            // Sprawdź uprawnienia do odczytu - teraz korzystamy z uproszczonej logiki
-//            if (!folderPermissionService.canUserReadFolder(currentUser, folderPath)) {
-//                logger.warn("Brak uprawnień do odczytu folderu {} dla użytkownika {}",
-//                        folderPath, currentUser.getUsername());
-//                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-//                        .body(null);
-//            }
-//
-//            // Wygeneruj zip z folderu
-//            byte[] zipData = nextcloudService.createZipFromFolder(folderPath, currentUser);
-//
-//            String folderName = folderPath.substring(folderPath.lastIndexOf('/') + 1);
-//            if (folderName.isEmpty()) {
-//                folderName = "folder";
-//            }
-//
-//            return ResponseEntity.ok()
-//                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
-//                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + folderName + ".zip\"")
-//                    .body(zipData);
-//        } catch (SecurityException e) {
-//            logger.warn("Naruszenie bezpieczeństwa: {} dla folderu {} przez użytkownika {}",
-//                    e.getMessage(), folderPath, currentUser.getUsername());
-//            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-//                    .body(null);
-//        } catch (Exception e) {
-//            logger.error("Błąd podczas tworzenia zip dla folderu {}: {}", folderPath, e.getMessage(), e);
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                    .body(null);
-//        }
-//    }
 
     @DeleteMapping("/files")
     @PreAuthorize("isAuthenticated()")
@@ -534,7 +352,7 @@ public ResponseEntity<byte[]> downloadFile(
             logger.info("Kontroler otrzymał żądanie usunięcia zasobu: {} przez użytkownika: {}",
                     path, currentUser.getUsername());
 
-            // Sprawdź uprawnienia do usuwania - teraz korzystamy z uproszczonej logiki
+            // Sprawdź uprawnienia do usuwania
             if (!folderPermissionService.canUserDeleteFolder(currentUser, path)) {
                 logger.warn("Brak uprawnień do usunięcia {} dla użytkownika {}",
                         path, currentUser.getUsername());
@@ -636,12 +454,12 @@ public ResponseEntity<byte[]> downloadFile(
         try {
             logger.info("Getting product info: {} by user: {}", path, currentUser.getUsername());
 
-            // Check permissions
+            //Sprawdź uprawnienia
             if (!folderPermissionService.canUserReadFolder(currentUser, path)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null);
             }
 
-            // Get product info
+            // Uzyskaj informacje o produkcie
             Map<String, Object> productInfo = nextcloudService.getProductInfo(path, currentUser);
 
             return ResponseEntity.ok(productInfo);

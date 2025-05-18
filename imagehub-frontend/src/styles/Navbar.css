@@ -1,4 +1,3 @@
-/* Pasek nawigacyjny (stały na górze) */
 .navbar {
     display: flex;
     justify-content: space-between;
@@ -6,15 +5,15 @@
     background-color: #1A2A42;
     padding: 15px 30px;
     color: #FFFFFF;
-    position: fixed; /* Utrzymuje navbar na stałe */
-    top: 0; /* Przypięcie do góry ekranu */
+    position: fixed;
+    top: 0;
     left: 0;
     width: 100%;
-    z-index: 1000; /* Zapobiega zakrywaniu przez inne elementy */
+    z-index: 1000;
     height: 70px;
 }
 
-/* Logo */
+
 .navbar-logo {
     display: flex;
     align-items: center;
@@ -28,15 +27,15 @@
 }
 
 .navbar-logo img {
-    height: 60px; /* Ustaw wysokość loga */
-    width: auto; /* Zachowanie proporcji */
-    max-height: 100%; /* Nie przekracza wysokości kontenera */
-    object-fit: contain; /* Zapobiega rozciąganiu */
+    height: 60px;
+    width: auto;
+    max-height: 100%;
+    object-fit: contain;
     margin-right: 10px;
 }
 
 
-/* Linki w navbarze */
+
 .navbar-links {
     list-style: none;
     display: flex;
@@ -57,7 +56,6 @@
     text-decoration: underline;
 }
 
-/* Dodatkowe style dla opcji w prawym górnym rogu */
 .navbar-options {
     display: flex;
     align-items: center;
@@ -86,10 +84,10 @@
 }
 
 .navbar-logout img {
-    height: 60px; /* Ustaw wysokość loga */
-    width: auto; /* Zachowanie proporcji */
-    max-height: 100%; /* Nie przekracza wysokości kontenera */
-    object-fit: contain; /* Zapobiega rozciąganiu */
+    height: 60px;
+    width: auto;
+    max-height: 100%;
+    object-fit: contain;
     margin-right: 5px;
 }
 
@@ -97,7 +95,7 @@
     text-decoration: underline;
 }
 
-/* Upewnij się, że zawartość strony nie wchodzi pod navbar */
+
 body {
-    margin-top: 60px; /* Dopasuj do wysokości navbaru */
+    margin-top: 60px;
 }

@@ -37,7 +37,6 @@ public class FolderPermission {
     @Column(name = "include_subfolders", nullable = false)
     private boolean includeSubfolders = false;
 
-    // Dodane nowe pole permission_type wymagane przez bazę danych
     @Column(name = "permission_type", nullable = false)
     private String permissionType = "STANDARD";
 
@@ -45,7 +44,7 @@ public class FolderPermission {
     public FolderPermission() {
     }
 
-    // Konstruktor z parametrami - dla kompatybilności ze starym kodem
+    // Konstruktor z parametrami
     public FolderPermission(String folderPath, User user, boolean canRead, boolean canWrite,
                             boolean canDelete, boolean includeSubfolders) {
         this.folderPath = folderPath;
@@ -53,12 +52,12 @@ public class FolderPermission {
         this.canRead = canRead;
         this.canWrite = canWrite;
         this.canDelete = canDelete;
-        this.canDownload = canRead; // domyślnie canDownload = canRead
+        this.canDownload = canRead;
         this.includeSubfolders = includeSubfolders;
-        this.permissionType = "STANDARD"; // Ustawienie domyślnej wartości
+        this.permissionType = "STANDARD";
     }
 
-    // Dodatkowy konstruktor z parametrem permission_type
+    // konstruktor z parametrem permission_type
     public FolderPermission(String folderPath, User user, boolean canRead, boolean canWrite,
                             boolean canDelete, boolean includeSubfolders, String permissionType) {
         this.folderPath = folderPath;
@@ -66,7 +65,7 @@ public class FolderPermission {
         this.canRead = canRead;
         this.canWrite = canWrite;
         this.canDelete = canDelete;
-        this.canDownload = canRead; // domyślnie canDownload = canRead
+        this.canDownload = canRead;
         this.includeSubfolders = includeSubfolders;
         this.permissionType = permissionType;
     }

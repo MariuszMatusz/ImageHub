@@ -50,7 +50,6 @@ public class JwtUtil {
                 .getSubject();
     }
 
-    // Zmieniono zwracany typ z enum Role na String
     public String extractRole(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())

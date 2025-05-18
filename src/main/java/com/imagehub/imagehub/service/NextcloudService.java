@@ -227,7 +227,7 @@ public class NextcloudService {
             return "";
         }
 
-        // Usuń końcowy znak "/" jeśli istnieje
+        // Usuwa końcowy znak "/" jeśli istnieje
         String normalizedPath = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
 
         int lastSlashIndex = normalizedPath.lastIndexOf('/');
@@ -351,30 +351,6 @@ public class NextcloudService {
         buffer.flush();
         return buffer.toByteArray();
     }
-//    /**
-//     * Pobierz plik z uwzględnieniem uprawnień użytkownika
-//     */
-//    public byte[] downloadFile(String path, User currentUser) throws Exception {
-//        // Sprawdź uprawnienia do odczytu
-//        if (!folderPermissionService.canUserReadFolder(currentUser, path)) {
-//            logger.warn("User {} attempted to download file {} without permission", currentUser.getUsername(), path);
-//            throw new SecurityException("No read permission for this file");
-//        }
-//
-//        logger.info("Downloading file: {}", path);
-//        InputStream is = nextcloudClient.downloadFile(path);
-//        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-//
-//        int nRead;
-//        byte[] data = new byte[16384];
-//
-//        while ((nRead = is.read(data, 0, data.length)) != -1) {
-//            buffer.write(data, 0, nRead);
-//        }
-//
-//        buffer.flush();
-//        return buffer.toByteArray();
-//    }
 
     /**
      * Tworzy plik zip z folderu
@@ -454,7 +430,6 @@ public class NextcloudService {
                 logger.debug("Dodawanie elementu: {} (ścieżka: {}) do ZIP", itemName, path);
 
                 // Sprawdź, czy to plik czy folder
-                // Możemy użyć metody listFiles aby sprawdzić, czy to folder
                 boolean isDirectory = false;
                 try {
                     // Próbujemy listować pliki - jeśli się uda, to znaczy, że to folder
@@ -647,7 +622,6 @@ public class NextcloudService {
             String startPath = (currentUser.getRole() != null && "ADMIN".equals(currentUser.getRole().getName())) ? "" : "";
 
             // Pobierz wszystkie pliki i foldery, rekurencyjnie przeszukując całą strukturę
-            // Uwaga: Dla dużych systemów plików to może być kosztowne, warto zoptymalizować
             searchInPath(startPath, query, currentUser, searchResults, new HashSet<>());
 
             logger.info("Search completed, found {} results", searchResults.size());
@@ -797,18 +771,7 @@ public class NextcloudService {
                 if (fileName.toLowerCase().contains("detail") && fileName.toLowerCase().endsWith(".jpg")) {
                     availableFiles.put("Detail_JPG", filePath);
                     imageTypes.add("Detail_JPG");
-                } else if (fileName.toLowerCase().contains("detail") && fileName.toLowerCase().endsWith(".png")) {
-                    availableFiles.put("Detail_PNG", filePath);
-                    imageTypes.add("Detail_PNG");
-                } else if (fileName.toLowerCase().contains("360") && fileName.toLowerCase().endsWith(".png")) {
-                    availableFiles.put("360_PNG", filePath);
-                    imageTypes.add("360_PNG");
-                } else if (fileName.toLowerCase().contains("full") && fileName.toLowerCase().endsWith(".jpg")) {
-                    availableFiles.put("FULL_JPG", filePath);
-                    imageTypes.add("FULL_JPG");
-                } else if (fileName.toLowerCase().contains("full") && fileName.toLowerCase().endsWith(".png")) {
-                    availableFiles.put("FULL_PNG", filePath);
-                    imageTypes.add("FULL_PNG");
+
                 } else if (fileName.toLowerCase().contains("info") && fileName.toLowerCase().endsWith(".txt")) {
                     // Spróbuj odczytać informacje o produkcie z pliku tekstowego
                     try {
@@ -825,7 +788,7 @@ public class NextcloudService {
                                 // Nadpisz nazwę jeśli jest dostępna w pliku
                                 productInfo.put("name", line.substring(5).trim());
                             }
-                            // Dodaj więcej pól według potrzeb
+                            // więcej pól według potrzeb
                         }
                         scanner.close();
                     } catch (Exception e) {

@@ -21,6 +21,5 @@ public interface CloudStorageService {
      */
     void deleteFolder(String path) throws IOException;
 
-    // Ewentualne metody do zarządzania dostępem, plikami itp.
 
 }

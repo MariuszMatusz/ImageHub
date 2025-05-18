@@ -9,7 +9,7 @@ import ProductFolderManagement from "./ProductFolderManagement";
 const AdminPanel: React.FC = () => {
     const [activeTab, setActiveTab] = useState<string>("userProfile");
 
-    // Render the appropriate component based on the active tab
+    // Renderowanie odpowiedniego komponentu na podstawie aktywnej karty
     const renderContent = () => {
         switch (activeTab) {
             case "userProfile":

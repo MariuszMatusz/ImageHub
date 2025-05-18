@@ -14,7 +14,7 @@ interface User {
     id: number;
     username: string;
     email: string;
-    role: Role; // Zmienione na obiekt Role zamiast string
+    role: Role;
 }
 
 const UserProfile: React.FC = () => {
@@ -22,13 +22,13 @@ const UserProfile: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Form states
+    // Stan formularza
     const [email, setEmail] = useState<string>("");
     const [currentPassword, setCurrentPassword] = useState<string>("");
     const [newPassword, setNewPassword] = useState<string>("");
     const [confirmPassword, setConfirmPassword] = useState<string>("");
 
-    // Form submission status
+    // Stan przesłania formularza
     const [emailUpdateStatus, setEmailUpdateStatus] = useState<{
         success: boolean;
         message: string;
@@ -39,7 +39,7 @@ const UserProfile: React.FC = () => {
         message: string;
     } | null>(null);
 
-    // Load user data on component mount
+    // Załaduj dane użytkownika podczas montowania komponentu
     useEffect(() => {
         fetchUserData();
     }, []);
@@ -79,10 +79,10 @@ const UserProfile: React.FC = () => {
                 message: "Email został zaktualizowany pomyślnie."
             });
 
-            // Refresh user data
+            // Odśwież dane użytkownika
             fetchUserData();
 
-            // Clear status after 3 seconds
+            // Wyczyść status po 3 sekundach
             setTimeout(() => {
                 setEmailUpdateStatus(null);
             }, 3000);
@@ -98,7 +98,7 @@ const UserProfile: React.FC = () => {
     const handlePasswordUpdate = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Validate password fields
+        // Sprawdź poprawność pól hasła
         if (!currentPassword) {
             setPasswordUpdateStatus({
                 success: false,
@@ -144,12 +144,12 @@ const UserProfile: React.FC = () => {
                 message: "Hasło zostało zmienione pomyślnie."
             });
 
-            // Clear password fields
+            // Wyczyść pola hasła
             setCurrentPassword("");
             setNewPassword("");
             setConfirmPassword("");
 
-            // Clear status after 3 seconds
+            // Wyczyść status po 3 sekundach
             setTimeout(() => {
                 setPasswordUpdateStatus(null);
             }, 3000);
@@ -191,7 +191,7 @@ const UserProfile: React.FC = () => {
             </div>
 
             <div className="profile-forms">
-                {/* Email update form */}
+                {/* Formularz aktualizacji e-mail */}
                 <form className="profile-form" onSubmit={handleEmailUpdate}>
                     <h3>Zmień adres email</h3>
 
@@ -217,7 +217,7 @@ const UserProfile: React.FC = () => {
                     </button>
                 </form>
 
-                {/* Password update form */}
+                {/* Formularz aktualizacji hasła */}
                 <form className="profile-form" onSubmit={handlePasswordUpdate}>
                     <h3>Zmień hasło</h3>
 

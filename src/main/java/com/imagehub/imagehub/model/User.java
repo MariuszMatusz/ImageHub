@@ -30,7 +30,6 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    // Zamieniono pole typu enum na referencję do encji Role
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;

@@ -1,20 +1,20 @@
 * {
     box-sizing: border-box;
 }
-/* Kontener strony logowania */
+
 .login-container {
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
     width: 100%;
-    position: fixed; /* Utrzymuje formularz w miejscu */
+    position: fixed;
     top: 0;
     left: 0;
     background-color: #f5f5f5;
 }
 
-/* Panel logowania */
+
 .login-box {
     background-color: #3d4c75;
     padding: 12px 50px;
@@ -24,14 +24,14 @@
     color: white;
     width: 450px;
     height: 400px;
-    position: absolute; /* Blokujemy położenie */
+    position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%); /* Centrowanie */
+    transform: translate(-50%, -50%);
     font-family: 'Inter', sans-serif;
 }
 
-/* Nagłówek */
+
 .login-box h2 {
     margin-bottom: 20px;
 }
@@ -39,7 +39,7 @@
 form {
     display: flex;
     flex-direction: column;
-    align-items: flex-start; /* Wyrównuje do lewej */
+    align-items: flex-start;
     width: 100%;
 }
 
@@ -47,15 +47,15 @@ h2 {
     font-size: 34px;
 }
 
-/* Etykiety (E-mail, Password) */
+
 label {
     font-size: 16px;
     font-weight: 600;
-    margin-bottom: 5px; /* Dodajemy odstęp poniżej tekstu */
-    display: block; /* Zapewnia, że label jest nad inputem */
+    margin-bottom: 5px;
+    display: block;
 }
 
-/* Pola formularza */
+
 input {
     width: 100%;
     padding: 10px;
@@ -66,7 +66,7 @@ input {
     background-color: #C6D4E8;
 }
 
-/* Link "Zapomniałeś hasła?" */
+
 .forgot-password {
     align-self: flex-end;
     font-size: 12px;
@@ -82,7 +82,7 @@ input {
     text-decoration: underline;
 }
 
-/* Przycisk logowania */
+
 .login-button {
     width: 100%;
     margin: 10px 0;
@@ -100,7 +100,7 @@ input {
 }
 
 
-/* Komunikat błędu */
+
 .error-message {
     color: red;
     font-size: 14px;
@@ -108,7 +108,7 @@ input {
     text-align: center;
 }
 
-/* Styl dla modalu wylogowania */
+
 .logout-modal {
     position: fixed;
     top: 10%;
@@ -126,7 +126,7 @@ input {
     text-align: center;
 }
 
-/* Kontener paska postępu */
+
 .progress-bar-container {
     position: relative;
     width: 100%;
@@ -137,7 +137,7 @@ input {
     overflow: hidden;
 }
 
-/* Pasek postępu z animacją */
+
 .progress-bar {
     position: absolute;
     left: 0;

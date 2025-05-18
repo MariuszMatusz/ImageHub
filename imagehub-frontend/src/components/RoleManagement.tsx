@@ -172,7 +172,7 @@ const RoleManagement: React.FC = () => {
     };
 
     const handleCreateRole = async () => {
-        // Validate role name
+        // Sprawdź poprawność nazwy roli
         if (!newRole.name.trim()) {
             setStatusMessage({
                 type: 'error',
@@ -195,7 +195,7 @@ const RoleManagement: React.FC = () => {
                 text: `Rola "${response.data.name}" została utworzona.`
             });
 
-            // Reset form
+            // Zresetuj formularz
             setNewRole({
                 name: '',
                 description: '',

@@ -223,7 +223,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     value={searchTerm}
                     onChange={handleSearchChange}
                 />
-                <span className="search-icon">🔍</span>
+
             </div>
 
             {/* Główny kontener sidebara */}

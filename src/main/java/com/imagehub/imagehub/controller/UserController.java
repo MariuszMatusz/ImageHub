@@ -56,7 +56,6 @@ public class UserController {
     }
 
     // USER/ADMIN: Pobranie danych aktualnie zalogowanego użytkownika
-//    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<User> getCurrentUser(@AuthenticationPrincipal User currentUser) {

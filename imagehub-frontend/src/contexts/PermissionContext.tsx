@@ -1,4 +1,3 @@
-// src/contexts/PermissionContext.tsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axiosInstance from '../utils/axiosInstance';
 
@@ -7,7 +6,7 @@ interface FolderPermission {
     canRead: boolean;
     canWrite: boolean;
     canDelete: boolean;
-    canDownload: boolean; // Dodane pole dla uprawnienia pobierania
+    canDownload: boolean;
     includeSubfolders: boolean;
 }
 
@@ -26,7 +25,7 @@ export const PermissionContext = createContext<{
     canReadFolder: (folderPath: string) => boolean;
     canWriteFolder: (folderPath: string) => boolean;
     canDeleteFolder: (folderPath: string) => boolean;
-    canDownloadFolder: (folderPath: string) => boolean; // Dodana nowa funkcja
+    canDownloadFolder: (folderPath: string) => boolean;
 }>({
     permissions: {
         rolePermissions: [],
@@ -39,7 +38,7 @@ export const PermissionContext = createContext<{
     canReadFolder: () => false,
     canWriteFolder: () => false,
     canDeleteFolder: () => false,
-    canDownloadFolder: () => false // Dodana funkcja z domyślną wartością
+    canDownloadFolder: () => false
 });
 
 export const usePermissions = () => useContext(PermissionContext);
@@ -57,41 +56,18 @@ export const PermissionProvider: React.FC<{children: React.ReactNode}> = ({ chil
     // Wczytaj uprawnienia przy montowaniu komponentu
     useEffect(() => {
         let mounted = true;
-    //     const fetchPermissions = async () => {
-    //         try {
-    //             const response = await axiosInstance.get('/users/me/permissions');
-    //
-    //             // Logowanie dla debugowania
-    //             console.log('Pobrane uprawnienia z API:', response.data);
-    //
-    //             setPermissions({
-    //                 ...response.data,
-    //                 isLoading: false,
-    //                 error: null
-    //             });
-    //         } catch (error) {
-    //             console.error('Błąd pobierania uprawnień:', error);
-    //             setPermissions(prev => ({
-    //                 ...prev,
-    //                 isLoading: false,
-    //                 error: 'Nie udało się załadować uprawnień'
-    //             }));
-    //         }
-    //     };
-    //
-    //     fetchPermissions();
-    // }, []);
+
 
         const fetchPermissions = async () => {
             try {
                 console.log('Starting permission fetch');
                 const response = await axiosInstance.get('/users/me/permissions');
 
-                // Only update state if component is still mounted
+                // Aktualizuj stan tylko wtedy, gdy komponent jest nadal zamontowany
                 if (mounted) {
                     console.log('Fetched permissions:', response.data);
 
-                    // Make sure we have at least empty arrays/objects for all properties
+                    // Sprawdzenie, czy mamy puste tablice/obiekty
                     setPermissions({
                         rolePermissions: response.data.rolePermissions || [],
                         folderPermissions: response.data.folderPermissions || {},
@@ -116,7 +92,7 @@ export const PermissionProvider: React.FC<{children: React.ReactNode}> = ({ chil
 
         fetchPermissions();
 
-        // Cleanup function
+        // Funkcja czyszczenia
         return () => {
             mounted = false;
         };
@@ -188,94 +164,37 @@ export const PermissionProvider: React.FC<{children: React.ReactNode}> = ({ chil
         return false;
     };
 
-    // // Nowa funkcja sprawdzająca uprawnienia do pobierania
-    // const canDownloadFolder = (folderPath: string): boolean => {
-    //
-    //
-    //
-    //     // Admin zawsze ma uprawnienia
-    //     if (permissions.isAdmin) return true;
-    //
-    //     // Jeśli uprawnienia są jeszcze ładowane, załóż, że nie ma uprawnień
-    //     if (permissions.isLoading) {
-    //         console.log('Uprawnienia jeszcze się ładują, zwracam false');
-    //         return false;
-    //     }
-    //
-    //     console.log(`Sprawdzanie uprawnień pobierania dla: ${folderPath}`);
-    //     console.log(`Stan uprawnień:`, permissions);
-    //
-    //     // Globalne uprawnienie do pobierania
-    //     if (hasPermission('files_download')) return true;
-    //
-    //     // Sprawdź uprawnienia dla konkretnych folderów
-    //     const folderPermissionsEntries = Object.entries(permissions.folderPermissions);
-    //
-    //     // Jeśli ma uprawnienie do odczytu, sprawdź czy nie ma jawnego zakazu pobierania
-    //     if (hasPermission('files_read')) {
-    //         // Sprawdź czy istnieje jawne wyłączenie pobierania dla tego folderu
-    //         for (let i = 0; i < folderPermissionsEntries.length; i++) {
-    //             const [path, perm] = folderPermissionsEntries[i];
-    //
-    //             if (folderPath.startsWith(path) && (path === folderPath || perm.includeSubfolders)) {
-    //                 // Jeśli jawnie wyłączono pobieranie
-    //                 if (perm.canDownload === false) {
-    //                     return false;
-    //                 }
-    //             }
-    //         }
-    //
-    //         // Domyślnie pozwól na pobieranie, jeśli jest uprawnienie do odczytu
-    //         return true;
-    //     }
-    //
-    //     // Sprawdź szczegółowe uprawnienia, jeśli nie ma globalnych
-    //     for (let i = 0; i < folderPermissionsEntries.length; i++) {
-    //         const [path, perm] = folderPermissionsEntries[i];
-    //
-    //         if (folderPath.startsWith(path)) {
-    //             // Użyj uprawnienia do pobierania lub domyślnie uprawnienia do odczytu
-    //             const hasDownloadPermission =
-    //                 perm.canDownload !== undefined ? perm.canDownload : perm.canRead;
-    //
-    //             if (hasDownloadPermission && (path === folderPath || perm.includeSubfolders)) {
-    //                 return true;
-    //             }
-    //         }
-    //     }
-    //
-    //     return false;
-    // };
+
     const canDownloadFolder = (folderPath: string): boolean => {
-        // If permissions are still loading, log and return false
+        // Jeśli uprawnienia nadal się ładują, zaloguj się i zwróć false
         if (permissions.isLoading) {
             console.log(`Permissions still loading when checking download for path: ${folderPath}`);
             return false;
         }
 
-        // Admin always has permissions
+        // Admin zawsze ma uprawnienia
         if (permissions.isAdmin) return true;
 
         console.log(`Checking download permissions for: ${folderPath}`);
 
-        // Global download permission
+        // Globalne pozwolenie na pobieranie
         if (hasPermission('files_download')) {
             console.log('User has global download permission');
             return true;
         }
 
-        // Check specific folder permissions
+        // Sprawdź uprawnienia do konkretnego folderu
         const folderPermissionsEntries = Object.entries(permissions.folderPermissions);
         console.log(`Number of folder permission entries: ${folderPermissionsEntries.length}`);
 
-        // If user has read permission, check if there's an explicit denial of download
+        // Jeśli użytkownik ma uprawnienia do odczytu, sprawdź, czy nie ma zakazu pobierania
         if (hasPermission('files_read')) {
-            // Check if download is explicitly disabled for this folder
+            // Sprawdź, czy pobieranie jest wyłączone dla tego folderu
             for (let i = 0; i < folderPermissionsEntries.length; i++) {
                 const [path, perm] = folderPermissionsEntries[i];
 
                 if (folderPath.startsWith(path) && (path === folderPath || perm.includeSubfolders)) {
-                    // If download is explicitly disabled
+                    // Jeśli pobieranie jest wyłączone
                     if (perm.canDownload === false) {
                         console.log(`Download explicitly disabled for ${path}`);
                         return false;
@@ -283,17 +202,17 @@ export const PermissionProvider: React.FC<{children: React.ReactNode}> = ({ chil
                 }
             }
 
-            // Default to allowing download if read permission exists
+            // Domyślnie zezwalaj na pobieranie, jeśli istnieją uprawnienia do odczytu
             console.log(`Default allowing download due to read permission for ${folderPath}`);
             return true;
         }
 
-        // Check detailed permissions if no global permissions exist
+        // Sprawdź szczegółowe uprawnienia, jeśli nie istnieją żadne uprawnienia globalne
         for (let i = 0; i < folderPermissionsEntries.length; i++) {
             const [path, perm] = folderPermissionsEntries[i];
 
             if (folderPath.startsWith(path)) {
-                // Use download permission or default to read permission
+                // Użyj uprawnień do pobierania lub domyślnie ustaw uprawnienia do odczytu
                 const hasDownloadPermission =
                     perm.canDownload !== undefined ? perm.canDownload : perm.canRead;
 
@@ -314,7 +233,7 @@ export const PermissionProvider: React.FC<{children: React.ReactNode}> = ({ chil
             canReadFolder,
             canWriteFolder,
             canDeleteFolder,
-            canDownloadFolder  // Dodano funkcję do kontekstu
+            canDownloadFolder
         }}>
             {children}
         </PermissionContext.Provider>

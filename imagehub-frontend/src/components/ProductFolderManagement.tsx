@@ -175,7 +175,6 @@ const ProductFolderManagement: React.FC = () => {
                                 <button
                                     className="remove-btn"
                                     onClick={() => {
-                                        // Zmodyfikowane, aby przekazać ścieżkę bezpośrednio do handleSetProductFolder
                                         handleSetProductFolder(path);
                                     }}
                                 >

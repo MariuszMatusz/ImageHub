@@ -5,7 +5,7 @@ import ProductCard from "./ProductCard";
 import { UserPermission, UserRole } from "../pages/PermissionManagement";
 import { usePermissions } from '../contexts/PermissionContext';
 
-// Interface for folder structure from Nextcloud API
+// Interfejs do struktury folderów z API Nextcloud
 interface Folder {
     name: string;
     path: string;
@@ -34,10 +34,10 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                                    isGlobalSearch = false,
                                                    searchResults = []
                                                }) => {
-    // Store previous parentFolderId to detect actual changes
+    // Przechowuj poprzedni parentFolderId, aby wykryć rzeczywiste zmiany
     const previousParentFolderIdRef = useRef<string | null>(null);
 
-    // State initialization with default showCurrentFolder=true
+    // Inicjalizacja stanu z domyślnym showCurrentFolder=true
     const [items, setItems] = useState<Folder[]>([]);
     const [allItems, setAllItems] = useState<Folder[]>([]);
     const [loading, setLoading] = useState(false);
@@ -48,7 +48,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
     const [fileToUpload, setFileToUpload] = useState<File | null>(null);
     const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [sortOrder, setSortOrder] = useState<string>("newest");
-    // Default to true to always show folder contents
+    // Domyślnie ustawiona wartość true powoduje, że zawartość folderu zawsze jest wyświetlana
     const [showCurrentFolder, setShowCurrentFolder] = useState<boolean>(false);
     const [showSortDropdown, setShowSortDropdown] = useState(false);
     const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
@@ -58,17 +58,17 @@ const FolderGrid: React.FC<FolderGridProps> = ({
     const [selectedProductFolder, setSelectedProductFolder] = useState<string | null>(null);
     const [productImages, setProductImages] = useState<Record<string, string>>({});
     const [productImageUrls, setProductImageUrls] = useState<Record<string, string | null>>({});
-    // Multi-selection feature states
+    // Stany funkcji wielokrotnego wyboru
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
     const [selectionMode, setSelectionMode] = useState<boolean>(false);
 
     // Kontekst uprawnień
     const { permissions, hasPermission, canReadFolder, canWriteFolder, canDeleteFolder, canDownloadFolder } = usePermissions();
 
-    // Check if user is admin
+    // Sprawdź, czy użytkownik jest adminem
     const isAdmin = userRole?.name === 'ADMIN';
 
-    // References for custom scrolling
+    // Odniesienia do niestandardowego przewijania
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const scrollThumbRef = useRef<HTMLDivElement>(null);
     const scrollTrackRef = useRef<HTMLDivElement>(null);
@@ -78,7 +78,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
     const [startY, setStartY] = useState<number>(0);
     const [startTop, setStartTop] = useState<number>(0);
 
-    // Sort options
+    // Opcje sortowania
     const sortOptions = [
         { value: "newest", label: "Najnowszych" },
         { value: "oldest", label: "Najstarszych" },
@@ -86,7 +86,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
         { value: "nameDesc", label: "Nazwa Z-A" }
     ];
 
-    // Function to load folder contents
+    // Funkcja ładowania zawartości folderu
     const loadFolderContents = (path: string | null) => {
         if (path === null) {
             console.warn("Path is null, skipping loading");
@@ -96,7 +96,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
         setLoading(true);
         setError(null);
 
-        // Determine path - when path is null load root folders
+        // Określ ścieżkę - gdy ścieżka jest pusta, załaduj foldery główne
         const folderPath = path !== null ? path : "";
         console.log("Fetching contents for path:", folderPath);
 
@@ -109,16 +109,16 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                 }
             })
             .then(response => {
-                // Save all items
+                // Zapisz wszystkie elementy
                 const allData = response.data;
                 setAllItems(allData);
 
-                // Set all items as visible (including current folder)
+                // Ustaw wszystkie elementy jako widoczne (łącznie z bieżącym folderem)
                 setItems(allData);
 
                 setLoading(false);
 
-                // Update scrollbar after loading data
+                // Aktualizuj pasek przewijania po załadowaniu danych
                 updateScrollThumbHeight();
             })
             .catch(error => {
@@ -128,44 +128,39 @@ const FolderGrid: React.FC<FolderGridProps> = ({
             });
     };
 
-    // Effect to detect parentFolderId changes and force reload
+    // Efekt wykrywania zmian parentFolderId i wymuszania ponownego ładowania
     useEffect(() => {
-        // console.log("useEffect [parentFolderId] triggered");
-        // console.log("Previous parentFolderId:", previousParentFolderIdRef.current);
-        // console.log("Current parentFolderId:", parentFolderId);
 
-        // In global search mode, don't load folder contents
+        // W trybie wyszukiwania globalnego nie ładuj zawartości folderu
         if (isGlobalSearch) {
-            // console.log("Global search mode, skipping folder loading");
             setItems(searchResults);
             setLoading(false);
             return;
         }
 
-        // Check if parentFolderId actually changed
+        // Sprawdź, czy parentFolderId faktycznie uległ zmianie
         if (parentFolderId !== previousParentFolderIdRef.current) {
-            // console.log("Detected actual parentFolderId change, reloading data");
 
-            // Clear items and allItems to show we're loading new content
+            // Wyczyść elementy i wszystkie elementy, aby pokazać, że ładujemy nową zawartość
             setItems([]);
             setAllItems([]);
             setLoading(true);
 
-            // Load new folder contents
+            // Załaduj nową zawartość folderu
             if (parentFolderId !== null) {
                 loadFolderContents(parentFolderId);
             } else {
                 setLoading(false);
             }
 
-            // Update reference to previous value
+            // Zaktualizuj odniesienie do poprzedniej wartości
             previousParentFolderIdRef.current = parentFolderId;
         } else {
-            // console.log("parentFolderId didn't change, skipping reload");
+            // console.log("parentFolderId nie uległ zmianie, pominięto ponowne ładowanie");
         }
     }, [parentFolderId, isGlobalSearch, searchResults]);
 
-    // Effect for updating search results
+    // Efekt aktualizacji wyników wyszukiwania
     useEffect(() => {
         if (isGlobalSearch) {
             setItems(searchResults);
@@ -173,20 +168,17 @@ const FolderGrid: React.FC<FolderGridProps> = ({
         }
     }, [isGlobalSearch, searchResults]);
 
-    // Effect that runs only once on component mount
+    // Efekt, który działa tylko raz po zamontowaniu komponentu
     useEffect(() => {
-        // console.log("FolderGrid - initial component initialization");
-        // console.log("Initial parentFolderId:", parentFolderId);
+
 
         if (parentFolderId !== null && !isGlobalSearch) {
-            // console.log("Initial loading of folder contents:", parentFolderId);
             loadFolderContents(parentFolderId);
         }
 
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Effect to observe showCurrentFolder changes - update display
+    // Efekt obserwowania zmian showCurrentFolder - aktualizacja wyświetlania
     useEffect(() => {
         // console.log("useEffect [showCurrentFolder, allItems] triggered");
         // console.log("showCurrentFolder:", showCurrentFolder);
@@ -247,19 +239,19 @@ const FolderGrid: React.FC<FolderGridProps> = ({
         };
     }, [items]);
 
-    // Functions for handling custom scrollbar
+    // Funkcje do obsługi niestandardowego paska przewijania
     const updateScrollThumbHeight = () => {
         if (!scrollAreaRef.current || !scrollTrackRef.current) return;
 
         const scrollArea = scrollAreaRef.current;
         const trackHeight = scrollTrackRef.current.clientHeight;
 
-        // Calculate thumb height proportion to track height
+        // Oblicz propocje wysokości do widoku
         const contentHeight = scrollArea.scrollHeight;
         const viewportHeight = scrollArea.clientHeight;
         const ratio = viewportHeight / contentHeight;
 
-        // Minimum thumb height is 20px
+        // Minimalna wysokość wynosi 20px
         const height = Math.max(ratio * trackHeight, 20);
         setThumbHeight(height);
     };
@@ -274,11 +266,11 @@ const FolderGrid: React.FC<FolderGridProps> = ({
         const viewportHeight = scrollArea.clientHeight;
         const scrollTop = scrollArea.scrollTop;
 
-        // Calculate thumb position based on scroll
+        // Oblicz położenie paska na podstawie przewijania
         const maxScrollTop = contentHeight - viewportHeight;
         const ratio = scrollTop / maxScrollTop;
 
-        // Max thumb position is track height minus thumb height
+        // Maksymalna pozycja paska to wysokość ścieżki minus wysokość paska
         const maxThumbTop = trackHeight - thumbHeight;
         const thumbPosition = ratio * maxThumbTop;
 
@@ -292,7 +284,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
     const handleTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
         if (!scrollAreaRef.current || !scrollTrackRef.current || !scrollThumbRef.current) return;
 
-        // Ignore click on thumb
+        // Ignoruj kliknięcie nie pasek przewijania
         if (e.target === scrollThumbRef.current) return;
 
         const track = scrollTrackRef.current;
@@ -301,7 +293,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
         const trackRect = track.getBoundingClientRect();
         const clickY = e.clientY - trackRect.top;
 
-        // Scroll to corresponding position
+        // Przewiń do odpowiedniej pozycji
         const contentHeight = scrollArea.scrollHeight;
         const viewportHeight = scrollArea.clientHeight;
         const maxScrollTop = contentHeight - viewportHeight;
@@ -318,7 +310,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
         setStartY(e.clientY);
         setStartTop(thumbTop);
 
-        // Add event listeners to the whole document
+        // Dodaj zdarzenie do całego dokumentu
         document.addEventListener('mousemove', handleDocumentMouseMove);
         document.addEventListener('mouseup', handleDocumentMouseUp);
     };
@@ -332,10 +324,10 @@ const FolderGrid: React.FC<FolderGridProps> = ({
         const deltaY = e.clientY - startY;
         const trackHeight = track.clientHeight;
 
-        // Calculate new thumb position with constraints
+        // Oblicz nową pozycję paska z ograniczeniami
         const newThumbTop = Math.max(0, Math.min(startTop + deltaY, trackHeight - thumbHeight));
 
-        // Calculate corresponding scroll position
+        // Oblicz odpowiednią pozycję przewijania
         const contentHeight = scrollArea.scrollHeight;
         const viewportHeight = scrollArea.clientHeight;
         const maxScrollTop = contentHeight - viewportHeight;
@@ -356,13 +348,13 @@ const FolderGrid: React.FC<FolderGridProps> = ({
 
 
 
-    // Effect initializing scrollbar
+    // Efekt inicjalizacji paska przewijania
     useEffect(() => {
-        // Update thumb height on window resize
+        // Aktualizuj wysokość paska przy zmianie rozmiaru okna
         const handleResize = () => updateScrollThumbHeight();
         window.addEventListener('resize', handleResize);
 
-        // Initialize scrollbar
+        // Initializuj scrollbar
         updateScrollThumbHeight();
 
         return () => {
@@ -372,23 +364,23 @@ const FolderGrid: React.FC<FolderGridProps> = ({
         };
     }, []);
 
-    // Update thumb position after items list changes
+    // Aktualizuj pozycję paska po zmianie listy elementów
     useEffect(() => {
         updateScrollThumbHeight();
     }, [items]);
 
-    // FIXED: Improved filter and sort function for items
+    // funkcja filtrowania i sortowania dla elementów
     const filterAndSortItems = () => {
         let filteredItems = items;
 
-        // Apply search filter if not in global search
+        // Zastosuj filtr wyszukiwania, jeśli nie znajduje się w wyszukiwaniu globalnym
         if (searchTerm.trim() && !isGlobalSearch) {
             filteredItems = items.filter(item =>
                 item.name.toLowerCase().includes(searchTerm.toLowerCase())
             );
         }
 
-        // Apply sorting
+        // Sortowanie
         return [...filteredItems].sort((a, b) => {
             switch (sortOrder) {
                 case "nameAsc":
@@ -396,13 +388,13 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                 case "nameDesc":
                     return b.name.localeCompare(a.name);
                 case "newest":
-                    // Sort by lastModified if available, newer first
+                    // Sortuj według ostatniej modyfikacji, jeśli dostępne, nowsze na początku
                     if (a.lastModified && b.lastModified) {
                         return new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime();
                     }
                     return 0;
                 case "oldest":
-                    // Sort by lastModified if available, older first
+                    // Sortuj według ostatniej modyfikacji, jeśli dostępne, starsze na początku
                     if (a.lastModified && b.lastModified) {
                         return new Date(a.lastModified).getTime() - new Date(b.lastModified).getTime();
                     }
@@ -413,17 +405,17 @@ const FolderGrid: React.FC<FolderGridProps> = ({
         });
     };
 
-    // Function to handle show current folder toggle
+    // Funkcja do obsługi przełączania wyświetlania bieżącego folderu
     const handleToggleCurrentFolder = (showCurrent: boolean) => {
         if (parentFolderId === null || allItems.length === 0) return;
 
         const path = parentFolderId;
 
         if (showCurrent) {
-            // Show all items including current folder
+            // Pokaż wszystkie elementy, w tym bieżący folder
             setItems(allItems);
         } else {
-            // Filter out current folder
+            // Odfiltruj bieżący folder
             const filteredItems = allItems.filter((item: Folder) => {
                 if (path === '') return true;
 
@@ -436,7 +428,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
         }
     };
 
-    // Function to create new folder
+    // Funkcja do tworzenia nowego folderu
     const createFolder = () => {
         if (!newFolderName.trim()) {
             setActionMessage({ type: 'error', text: 'Nazwa folderu nie może być pusta' });
@@ -452,7 +444,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                 }
             })
             .then(() => {
-                // Add new folder to list
+                // Dodaj nowy folder do listy
                 const newFolder: Folder = {
                     name: newFolderName,
                     path: path,
@@ -462,7 +454,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                 };
                 setAllItems([...allItems, newFolder]);
 
-                // Filter and sort appropriately
+                // Odpowiednio filtruj i sortuj
                 if (showCurrentFolder) {
                     setItems(prev => [...prev, newFolder].sort((a, b) => {
                         if (sortOrder === "nameAsc") return a.name.localeCompare(b.name);
@@ -470,7 +462,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                         return 0;
                     }));
                 } else {
-                    // Do nothing because new folder is not current folder
+                    // Nie rób nic, ponieważ nowy folder nie jest bieżącym folderem
                     setItems(prev => [...prev, newFolder]);
                 }
 
@@ -484,7 +476,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
             });
     };
 
-    // FIXED: Improved file upload function
+    // funkcja przesyłania plików
     const uploadFile = () => {
         if (!fileToUpload) {
             setActionMessage({ type: 'error', text: 'Wybierz plik do przesłania' });
@@ -504,7 +496,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                 }
             })
             .then(() => {
-                // Add uploaded file to list
+                // Dodaj przesłany plik do listy
                 const newFile: Folder = {
                     name: fileToUpload.name,
                     path: parentFolderId ? `${parentFolderId}/${fileToUpload.name}` : fileToUpload.name,
@@ -532,33 +524,33 @@ const FolderGrid: React.FC<FolderGridProps> = ({
     const hasDownload = (item: any): boolean => {
         if (!item) return false;
 
-        // Check if permissions are still loading
+        // Sprawdź, czy uprawnienia nadal się ładują
         if (permissions.isLoading) {
             console.log('Permissions still loading in hasDownload function');
-            return false; // Default to false while loading
+            return false; //Domyślnie fałsz podczas ładowania
         }
 
-        // Administrators always have permissions
+        // Administratorzy zawsze mają uprawnienia
         if (userRole?.name === 'ADMIN') return true;
 
-        // Check global download permission
+        // Sprawdź globalne pozwolenie na pobieranie
         if (hasPermission('files_download')) {
             console.log('User has global download permission');
             return true;
         }
 
-        // Check folder-specific download permissions
+        // Sprawdź uprawnienia pobierania dla konkretnego folderu
         if (canDownloadFolder && typeof canDownloadFolder === 'function') {
             const result = canDownloadFolder(item.path);
             console.log(`Download permission for folder ${item.path}: ${result}`);
             return result;
         }
 
-        // Fallback to read permission
+        // Powrót do uprawnień odczytu
         return hasRead(item);
     };
 
-    // FIXED: Improved delete function with better error handling
+    // funkcja usuwania z obsługą błędów
     const deleteItem = (item: Folder) => {
         // Sprawdź uprawnienia przed usunięciem
         if (!hasDelete(item)) {
@@ -577,11 +569,11 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                     file: item.path,
                 }})
             .then(() => {
-                // Remove item from lists
+                // Usuń element z list
                 setAllItems(allItems.filter(i => i.path !== item.path));
                 setItems(items.filter(i => i.path !== item.path));
 
-                // Remove from selection if in selection mode
+                // Usuń z wyboru, jeśli jesteś w trybie wyboru
                 if (selectionMode && selectedItems.has(item.path)) {
                     const newSelection = new Set(selectedItems);
                     newSelection.delete(item.path);
@@ -611,7 +603,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
     };
 // Funkcja do pobierania pliku
     const downloadFile = (item: Folder) => {
-        // Sprawdź uprawnienia przed pobraniem - używamy nowej funkcji hasDownload
+        // Sprawdź uprawnienia przed pobraniem z funkcją hadDownload
 
         if (permissions.isLoading) {
             setActionMessage({ type: 'error', text: "Ładowanie uprawnień, spróbuj za chwilę..." });
@@ -689,7 +681,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
             return;
         }
 
-        // Sprawdź uprawnienia przed pobraniem - używamy nowej funkcji hasDownload
+        // Sprawdź uprawnienia przed pobraniem z funkcją hasDownload
         if (!hasDownload(item)) {
             setActionMessage({ type: 'error', text: "Brak uprawnień do pobrania folderu" });
             return;
@@ -740,143 +732,28 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                 setActionMessage({ type: 'error', text: errorMessage });
             });
     };
-    // // FIXED: Improved file download function
-    // const downloadFile = (item: Folder) => {
-    //     // Sprawdź uprawnienia przed pobraniem
-    //     if (!hasRead(item)) {
-    //         setActionMessage({ type: 'error', text: "Brak uprawnień do pobrania pliku" });
-    //         return;
-    //     }
-    //
-    //     setActionMessage({ type: 'success', text: "Przygotowywanie pliku do pobrania..." });
-    //
-    //     axiosInstance
-    //         .get(`/nextcloud/files/download`,  {
-    //             params: {
-    //                 file: item.path,
-    //             },
-    //             responseType: 'blob'
-    //         })
-    //         .then(response => {
-    //             // Pozostała część funkcji bez zmian
-    //             const blob = new Blob([response.data], {
-    //                 type: item.contentType || 'application/octet-stream'
-    //             });
-    //
-    //             const url = window.URL.createObjectURL(blob);
-    //             const link = document.createElement('a');
-    //             link.href = url;
-    //             link.setAttribute('download', item.name);
-    //
-    //             document.body.appendChild(link);
-    //             link.click();
-    //
-    //             setTimeout(() => {
-    //                 document.body.removeChild(link);
-    //                 window.URL.revokeObjectURL(url);
-    //                 setActionMessage({ type: 'success', text: "Plik pobrany pomyślnie" });
-    //
-    //                 setTimeout(() => {
-    //                     setActionMessage(null);
-    //                 }, 3000);
-    //             }, 100);
-    //         })
-    //         .catch(error => {
-    //             console.error("Error downloading file:", error);
-    //
-    //             let errorMessage = "Błąd podczas pobierania pliku";
-    //
-    //             if (error.response) {
-    //                 if (error.response.status === 403) {
-    //                     errorMessage = "Brak uprawnień do pobrania pliku";
-    //                 } else {
-    //                     errorMessage += `: ${error.response.status} - ${error.response.statusText}`;
-    //                 }
-    //             } else if (error.request) {
-    //                 errorMessage += ": Brak odpowiedzi z serwera";
-    //             } else {
-    //                 errorMessage += `: ${error.message}`;
-    //             }
-    //
-    //             setActionMessage({ type: 'error', text: errorMessage });
-    //         });
-    // };
-    //
-    // // Funkcja do pobierania folderu jako zip
-    // const downloadFolder = (item: Folder) => {
-    //     // Sprawdź uprawnienia przed pobraniem
-    //     if (!hasRead(item)) {
-    //         setActionMessage({ type: 'error', text: "Brak uprawnień do pobrania folderu" });
-    //         return;
-    //     }
-    //
-    //     // Display message about preparing download
-    //     setActionMessage({ type: 'success', text: "Przygotowywanie folderu do pobrania..." });
-    //
-    //     axiosInstance
-    //         .get(`/nextcloud/files/download-zip`,  {
-    //             params: {
-    //                 file: item.path,
-    //             },
-    //             responseType: 'blob'
-    //         })
-    //         .then(response => {
-    //             // Create a download link for the zip file
-    //             const url = window.URL.createObjectURL(new Blob([response.data]));
-    //             const link = document.createElement('a');
-    //             link.href = url;
-    //             link.setAttribute('download', `${item.name}.zip`);
-    //             document.body.appendChild(link);
-    //             link.click();
-    //             document.body.removeChild(link);
-    //
-    //             // Clear message after successful download
-    //             setTimeout(() => {
-    //                 setActionMessage(null);
-    //             }, 3000);
-    //         })
-    //         .catch(error => {
-    //             console.error("Error downloading folder:", error);
-    //
-    //             let errorMessage = "Błąd podczas pobierania folderu";
-    //
-    //             if (error.response) {
-    //                 if (error.response.status === 403) {
-    //                     errorMessage = "Brak uprawnień do pobrania folderu";
-    //                 } else {
-    //                     errorMessage += `: ${error.response.status} - ${error.response.statusText}`;
-    //                 }
-    //             } else if (error.request) {
-    //                 errorMessage += ": Brak odpowiedzi z serwera";
-    //             } else {
-    //                 errorMessage += `: ${error.message}`;
-    //             }
-    //
-    //             setActionMessage({ type: 'error', text: errorMessage });
-    //         });
-    // };
 
-    // Function to toggle view mode (grid/list) with localStorage save
+
+    // Funkcja umożliwiająca przełączanie trybu widoku (siatka/lista) z zapisem w pamięci lokalnej
     const toggleViewMode = () => {
         const newViewMode = viewMode === "grid" ? "list" : "grid";
         setViewMode(newViewMode);
-        // Save user preference in localStorage
+        // Zapisz preferencje użytkownika w localStorage
         localStorage.setItem('folderViewMode', newViewMode);
     };
 
-    // NEW FEATURE: Multi-selection functions
-    // Function to toggle selection mode
+    // Funkcja przełączania trybu wyboru
     const toggleSelectionMode = () => {
-        // Clear selections when exiting selection mode
+        // Czyszczenie zaznaczenia przy wychodzeniu z trybu zaznaczania
         if (selectionMode) {
             setSelectedItems(new Set());
         }
         setSelectionMode(!selectionMode);
     };
 
-    // Function to handle item selection
+    // Funkcja do obsługi wyboru elementów
     const toggleItemSelection = (itemPath: string, event: React.MouseEvent) => {
-        event.stopPropagation(); // Prevent other click handlers
+        event.stopPropagation();
 
         setSelectedItems(prevSelectedItems => {
             const newSelectedItems = new Set(prevSelectedItems);
@@ -894,53 +771,15 @@ const FolderGrid: React.FC<FolderGridProps> = ({
         const displayedItems = filterAndSortItems();
 
         if (selectedItems.size === displayedItems.length) {
-            // If all are selected, deselect all
+            // Jeśli wszystkie są zaznaczone, odznacz wszystkie
             setSelectedItems(new Set());
         } else {
-            // Otherwise, select all
+            // W przeciwnym razie zaznacz wszystko
             const allPaths = new Set(displayedItems.map(item => item.path));
             setSelectedItems(allPaths);
         }
     };
 
-    // // Function to download all selected items
-    // const downloadSelectedItems = () => {
-    //     // If only one item is selected, download it directly
-    //     if (selectedItems.size === 1) {
-    //         const itemPath = Array.from(selectedItems)[0];
-    //         const item = items.find(i => i.path === itemPath);
-    //         if (item) {
-    //             if (item.isDirectory) {
-    //                 downloadFolder(item);
-    //             } else {
-    //                 downloadFile(item);
-    //             }
-    //         }
-    //         return;
-    //     }
-    //
-    //     // For multiple items, inform the user
-    //     setActionMessage({
-    //         type: 'success',
-    //         text: `Przygotowywanie ${selectedItems.size} elementów do pobrania...`
-    //     });
-    //
-    //     // Download items one by one
-    //     const selectedItemsList = filterAndSortItems().filter(item =>
-    //         selectedItems.has(item.path)
-    //     );
-    //
-    //     // Download each item with a delay to avoid browser limitations
-    //     selectedItemsList.forEach((item, index) => {
-    //         setTimeout(() => {
-    //             if (item.isDirectory) {
-    //                 downloadFolder(item);
-    //             } else {
-    //                 downloadFile(item);
-    //             }
-    //         }, index * 1000); // 1 second delay between downloads
-    //     });
-    // };
 
     // Funkcja do pobierania wielu zaznaczonych elementów
     const downloadSelectedItems = () => {
@@ -1036,7 +875,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
             });
     };
 
-    // Function to delete all selected items
+    // Funkcja do usuwania wszystkich zaznaczonych elementów
     const deleteSelectedItems = () => {
         if (!window.confirm(`Czy na pewno chcesz usunąć ${selectedItems.size} wybranych elementów?`)) {
             return;
@@ -1051,13 +890,13 @@ const FolderGrid: React.FC<FolderGridProps> = ({
             text: `Usuwanie ${selectedItems.size} elementów...`
         });
 
-        // Delete each item with a delay
+        // Usuń każdy element z opóźnieniem
         let deletedCount = 0;
         let errorCount = 0;
 
         selectedItemsList.forEach((item, index) => {
             setTimeout(() => {
-                // Encode the path to handle special characters
+                // Zakoduj ścieżkę do obsługi znaków specjalnych
                 const encodedPath = encodeURIComponent(item.path);
 
                 axiosInstance
@@ -1066,11 +905,11 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                         }})
                     .then(() => {
                         deletedCount++;
-                        // Remove from state
+                        // Usuń ze stanu
                         setAllItems(prev => prev.filter(i => i.path !== item.path));
                         setItems(prev => prev.filter(i => i.path !== item.path));
 
-                        // Update message on completion
+                        // Wyświetl wiadomość po zakończeniu
                         if (deletedCount + errorCount === selectedItems.size) {
                             if (errorCount > 0) {
                                 setActionMessage({
@@ -1091,7 +930,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                         errorCount++;
                         console.error(`Error deleting item ${item.path}:`, error);
 
-                        // Update message on completion
+                        // Wyświetl wiadomość po zakończeniu
                         if (deletedCount + errorCount === selectedItems.size) {
                             setActionMessage({
                                 type: 'error',
@@ -1099,7 +938,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                             });
                         }
                     });
-            }, index * 300); // 300ms delay between delete operations
+            }, index * 300); // Opóźnienie 300 ms pomiędzy operacjami usuwania
         });
     };
 
@@ -1241,12 +1080,12 @@ const FolderGrid: React.FC<FolderGridProps> = ({
         }
     };
 
-    // Render component
+    // Komponent renderujący
     return (
         <div className="product-grid-container">
-            {/* Top toolbar */}
+            {/* Górny pasek narzędzi */}
             <div className="filter-controls">
-                {/* Show current folder toggle - visible only when not in global search */}
+                {/* Pokaż przełącznik bieżącego folderu - widoczny tylko wtedy, gdy nie jest w globalnym wyszukiwaniu */}
                 {!isGlobalSearch && (
                     <div className="toggle-container">
                         <label className="toggle-switch">
@@ -1255,7 +1094,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                 checked={showCurrentFolder}
                                 onChange={() => {
                                     setShowCurrentFolder(!showCurrentFolder);
-                                    // Immediate application of change
+                                    // Natychmiastowe zastosowanie zmian
                                     handleToggleCurrentFolder(!showCurrentFolder);
                                 }}
                             />
@@ -1265,7 +1104,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                     </div>
                 )}
 
-                {/* Search results header - visible only in global search mode */}
+                {/* Nagłówek wyników wyszukiwania – widoczny tylko w trybie wyszukiwania globalnego */}
                 {isGlobalSearch && searchTerm && (
                     <div className="search-results-header">
                         <h3>Wyniki wyszukiwania dla: "{searchTerm}"</h3>
@@ -1273,7 +1112,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                     </div>
                 )}
 
-                {/* Sort dropdown - always visible */}
+                {/* Sortuj listę rozwijaną - zawsze widoczną */}
                 <div className="sort-dropdown">
                     <div
                         className="sort-dropdown-header"
@@ -1300,12 +1139,12 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                     )}
                 </div>
 
-                {/* Clear search button - visible only in global search mode */}
+                {/* Przycisk Wyczyść wyszukiwanie – widoczny tylko w trybie wyszukiwania globalnego */}
                 {isGlobalSearch && (
                     <button
                         className="clear-search-btn"
                         onClick={() => {
-                            // Reset search and return to normal view
+                            // Zresetuj wyszukiwanie i wróć do normalnego widoku
                             window.location.href = parentFolderId ? `/dashboard?folder=${parentFolderId}` : '/dashboard';
                         }}
                     >
@@ -1313,7 +1152,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                     </button>
                 )}
 
-                {/* Action buttons - visible only if user has write permissions and not in global search mode */}
+                {/* Przyciski akcji – widoczne tylko wtedy, gdy użytkownik ma uprawnienia do zapisu i nie znajduje się w trybie wyszukiwania globalnego */}
                 {hasPermission("files_write") && !isGlobalSearch && parentFolderId && hasWrite({path: parentFolderId}) && (
                     <div className="action-buttons">
                         <button
@@ -1331,7 +1170,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                     </div>
                 )}
 
-                {/* View mode toggle (grid/list) */}
+                {/* Przełączanie trybu widoku (siatka/lista) */}
                 <div className="view-mode-toggle">
                     <button
                         className={`view-mode-btn ${viewMode === "grid" ? "active" : ""}`}
@@ -1357,7 +1196,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                         )}
                     </button>
 
-                    {/* NEW FEATURE: Selection mode toggle button */}
+                    {/* Przycisk przełączania trybu wyboru */}
                     <button
                         className={`select-mode-btn ${selectionMode ? "active" : ""}`}
                         onClick={toggleSelectionMode}
@@ -1371,7 +1210,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                 </div>
             </div>
 
-            {/* NEW FEATURE: Selection toolbar */}
+            {/* Pasek narzędzi wyboru */}
             {selectionMode && (
                 <div className="selection-toolbar">
                     <button
@@ -1406,7 +1245,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                 </div>
             )}
 
-            {/* Action message */}
+            {/* Komunikat akcji */}
             {actionMessage && (
                 <div className={`action-message ${actionMessage.type}`}>
                     {actionMessage.text}
@@ -1414,30 +1253,30 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                 </div>
             )}
 
-            {/* Loading */}
+            {/* Ładowanie */}
             {loading && <div className="loading">Ładowanie zawartości...</div>}
 
             {/* Error */}
             {error && <div className="error">{error}</div>}
 
-            {/* No folder selected */}
+            {/* Nie wybrano folderu */}
             {!parentFolderId && !isGlobalSearch && !loading && !error && (
                 <div className="no-folder-selected">
                     <p>Wybierz folder z panelu po lewej stronie</p>
                 </div>
             )}
 
-            {/* Container with file grid and custom scrollbar */}
+            {/* Kontener z siatką plików i niestandardowym paskiem przewijania */}
             {(parentFolderId || isGlobalSearch) && !loading && !error && (
                 <div className="product-grid-scroll-container">
-                    {/* Scroll area with grid */}
+                    {/* Przewiń obszar za pomocą siatki */}
                     <div
                         className="product-grid-scroll-area"
                         ref={scrollAreaRef}
                         onScroll={handleScrollAreaScroll}
                     >
                         {viewMode === "grid" ? (
-                            // Grid view
+                            // Widok siatki
                             <div className="product-grid">
                                 {filterAndSortItems().length === 0 ? (
                                     <div className="empty-folder">
@@ -1449,24 +1288,17 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                             key={item.path}
                                             className={`product-card ${selectedItems.has(item.path) ? 'selected' : ''}`}
                                         >
-                                            {/* NEW FEATURE: Selection checkbox in grid view */}
+                                            {/* Pole wyboru w widoku siatki */}
                                             {selectionMode && (
                                                 <div className="checkbox-container" onClick={(e) => toggleItemSelection(item.path, e)}>
                                                     <input
                                                         type="checkbox"
                                                         className="item-checkbox"
                                                         checked={selectedItems.has(item.path)}
-                                                        onChange={() => {}} // Handling in onClick of container
+                                                        onChange={() => {}} // Obsługa kontenera za pomocą kliknięcia
                                                     />
                                                 </div>
                                             )}
-                                            {/*<div className="product-image">*/}
-                                            {/*    {item.isDirectory ? (*/}
-                                            {/*        <img src="/placeholder-folder.png" alt="Folder" className="folder-img" />*/}
-                                            {/*    ) : (*/}
-                                            {/*        <img src="/placeholder-image.png" alt="Product" />*/}
-                                            {/*    )}*/}
-                                            {/*</div>*/}
 
                                             <div className="product-image">
                                                 {item.isDirectory ? (
@@ -1507,7 +1339,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                                                 className="btn-open"
                                                                 onClick={() => {
                                                                     // Jeśli to folder produktowy (i NIE jest oznaczony jako mający dzieci-produkty)
-                                                                    // Zawsze pokazujemy kartę produktu - usunięto sprawdzanie hasRead
+                                                                    // Zawsze pokazujemy kartę produktu
                                                                     if (item.isProductFolder && !item.hasChildrenAsProducts) {
                                                                         console.log("This is a product folder, showing product card");
                                                                         setSelectedProductFolder(item.path);
@@ -1535,7 +1367,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                                             )}
                                                         </>
                                                     ) : (
-                                                        // For files
+                                                        // Dla plików
                                                         <>
                                                             <button
                                                                 className="btn-download"
@@ -1560,7 +1392,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                 )}
                             </div>
                         ) : (
-                            // List view
+                            // Widok listy
                             <div className="product-list">
                                 {filterAndSortItems().length === 0 ? (
                                     <div className="empty-folder">
@@ -1574,7 +1406,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                                 key={item.path}
                                                 className={`list-item ${selectedItems.has(item.path) ? 'selected' : ''}`}
                                             >
-                                                {/* NEW FEATURE: Selection checkbox in list view */}
+                                                {/* Pole wyboru w widoku listy */}
                                                 {selectionMode && (
                                                     <td
                                                         className="list-item-checkbox"
@@ -1584,7 +1416,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                                             type="checkbox"
                                                             className="item-checkbox"
                                                             checked={selectedItems.has(item.path)}
-                                                            onChange={() => {}} // Handling in onClick of container
+                                                            onChange={() => {}} // Obsługa kontenera za pomocą kliknięcia
                                                         />
                                                     </td>
                                                 )}
@@ -1621,16 +1453,16 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                                 <td className="list-item-actions">
                                                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '5px' }}>
                                                         {item.isDirectory ? (
-                                                            // For folders
+                                                            // Dla folderów
                                                             <>
                                                                 <button
                                                                     className="btn-open list-btn"
                                                                     onClick={() => {
-                                                                        // Zawsze pokazujemy kartę produktu dla folderów produktowych - usunięto sprawdzanie hasRead
+                                                                        // Zawsze pokazujemy kartę produktu dla folderów produktowych
                                                                         if (item.isProductFolder && !item.hasChildrenAsProducts) {
                                                                             setSelectedProductFolder(item.path);
                                                                         } else {
-                                                                            // Direct redirect with page reload
+                                                                            // Bezpośrednie przekierowanie z przeładowaniem strony
                                                                             window.location.href = `/dashboard?folder=${item.path}`;
                                                                         }
                                                                     }}
@@ -1656,7 +1488,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                                                                 )}
                                                             </>
                                                         ) : (
-                                                            // For files
+                                                            // Dla plików
                                                             <>
                                                                 <button
                                                                     className="btn-download list-btn"
@@ -1687,7 +1519,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                         )}
                     </div>
 
-                    {/* Custom scrollbar */}
+                    {/* Niestandardowy pasek przewijania */}
                     <div
                         className="custom-scrollbar"
                         ref={scrollTrackRef}
@@ -1707,7 +1539,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                 </div>
             )}
 
-            {/* Create folder modal */}
+            {/* Utwórz folder  */}
             {showCreateFolderModal && (
                 <div className="modal">
                     <div className="modal-content">
@@ -1734,7 +1566,7 @@ const FolderGrid: React.FC<FolderGridProps> = ({
                     onClose={() => setSelectedProductFolder(null)}
                 />
             )}
-            {/* Upload file modal */}
+            {/* Prześlij plik */}
             {showUploadModal && (
                 <div className="modal">
                     <div className="modal-content">

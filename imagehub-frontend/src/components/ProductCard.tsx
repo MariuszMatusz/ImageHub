@@ -306,16 +306,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ folderPath, onClose }) => {
                         initialFileState[fileType] = false;
                     });
                     setSelectedFiles(initialFileState);
-                } else {
-                    // Domyślne typy plików jeśli backend nie zwrócił listy
-                    setSelectedFiles({
-                        all: false,
-                        Detail_JPG: false,
-                        Detail_PNG: false,
-                        '360_PNG': false,
-                        FULL_JPG: false,
-                        FULL_PNG: false
-                    });
+                // } else {
+                //     // Domyślne typy plików jeśli backend nie zwrócił listy
+                //     setSelectedFiles({
+                //         all: false,
+                //         FULL_JPG: false,
+                //         FULL_PNG: false
+                //     });
                 }
             } catch (err) {
                 console.error("Error fetching product info:", err);
@@ -329,7 +326,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ folderPath, onClose }) => {
             setSubFolders(folders);
             setFolderContents(files);
 
-            // Pobierz wszystkie obrazy z podfoldery
+            // Pobierz wszystkie obrazy z podfolderów
             const allImages = await fetchAllProductImages(folderPath);
             setAllProductImages(allImages);
 
@@ -788,89 +785,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ folderPath, onClose }) => {
         );
     };
 
-    // const renderImagePreviewWithBlob = () => {
-    //     const [imageBlob, setImageBlob] = useState<string | null>(null);
-    //
-    //     useEffect(() => {
-    //         let isMounted = true;
-    //
-    //         const loadImage = async () => {
-    //             if (!currentImage) return;
-    //
-    //             try {
-    //                 // Wyczyść poprzedni blob URL, jeśli istnieje
-    //                 if (imageBlob) {
-    //                     URL.revokeObjectURL(imageBlob);
-    //                 }
-    //
-    //                 const blobUrl = await fetchImageAsDataUrl(currentImage);
-    //
-    //                 if (isMounted && blobUrl) {
-    //                     setImageBlob(blobUrl);
-    //                     console.log("Obraz załadowany jako blob URL:", blobUrl);
-    //                 }
-    //             } catch (error) {
-    //                 console.error("Błąd w useEffect podczas ładowania obrazu:", error);
-    //             }
-    //         };
-    //
-    //
-    //         loadImage();
-    //
-    //         return () => {
-    //             isMounted = false;
-    //             // Zwolnij zasoby przy odmontowywaniu
-    //             if (imageBlob) {
-    //                 URL.revokeObjectURL(imageBlob);
-    //             }
-    //         };
-    //     }, [currentImage]);
-    //
-    //     if (!currentImage) {
-    //         return (
-    //             <div className="image-placeholder">
-    //                 <img src="/placeholder-image.png" alt={getProductName()} />
-    //             </div>
-    //         );
-    //     }
-    //
-    //     const sourceInfo = getImageSourceInfo();
-    //
-    //     return (
-    //         <div className="product-image-preview">
-    //             {imageBlob ? (
-    //                 <img
-    //                     src={imageBlob}
-    //                     alt="Podgląd produktu"
-    //                     className="preview-image"
-    //                     onError={(e) => {
-    //                         console.error("Błąd ładowania obrazu z blob URL");
-    //                         e.currentTarget.onerror = null;
-    //                         e.currentTarget.src = "/placeholder-image.png";
-    //                     }}
-    //                 />
-    //             ) : (
-    //                 <div className="loading-image">
-    //                     Ładowanie obrazu...
-    //                 </div>
-    //             )}
-    //             <div className="image-navigation">
-    //                 <button className="prev-button" onClick={() => navigateImages('prev')}>←</button>
-    //                 <button className="next-button" onClick={() => navigateImages('next')}>→</button>
-    //             </div>
-    //             {sourceInfo && (
-    //                 <div className="image-source-info">
-    //                     {sourceInfo}
-    //                 </div>
-    //             )}
-    //             <div className="image-counter">
-    //                 {allProductImages.length > 0 ?
-    //                     `${allProductImages.findIndex(img => img.path === currentImage) + 1} / ${allProductImages.length}` :
-    //                     ""}
-    //             </div>
-    //         </div>
-    //     );
-    // };
 
     return (
         <div className="product-card-overlay" onClick={(e) => {

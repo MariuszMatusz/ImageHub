@@ -14,11 +14,11 @@ const Dashboard: React.FC = () => {
     const [userRole, setUserRole] = useState<UserRole | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    // State for search
+    // Wyszukiwanie
     const [searchTerm, setSearchTerm] = useState<string>("");
-    // State for global search results
+    // Globalne wyszukiwanie wyników
     const [searchResults, setSearchResults] = useState<any[]>([]);
-    // State to determine if we're in global search mode
+    // Sprawdzenie, czy jesteśmy w trybie wyszukiwania globalnego
     const [isGlobalSearch, setIsGlobalSearch] = useState<boolean>(false);
     const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
@@ -32,11 +32,11 @@ const Dashboard: React.FC = () => {
             console.log("Permissions still loading, waiting...");
             return;
         }
-        // Log that permissions are loaded
+        // Rejestruj, że uprawnienia są ładowane
         console.log("Permissions loaded, proceeding with user data fetch");
         setPermissionsLoaded(true);
 
-        // Check URL for folder parameter
+        // Sprawdź adres URL dla parametru folderu
         const params = new URLSearchParams(window.location.search);
         const folderParam = params.get('folder');
 
@@ -110,13 +110,13 @@ const Dashboard: React.FC = () => {
         }
     };
 
-    // Handle folder selection
+    // Obsługiwanie wybór folderu
     const handleFolderSelect = (folderId: string | null) => {
-        // Reset search state when changing folders
+        // Resetuj stan wyszukiwania podczas zmiany folderów
         setIsGlobalSearch(false);
         setSearchTerm("");
 
-        // Update URL first
+        // Najpierw zaktualizuj adres URL
         if (folderId) {
             const url = new URL(window.location.href);
             url.searchParams.set('folder', folderId);
@@ -127,16 +127,16 @@ const Dashboard: React.FC = () => {
             window.history.pushState({}, '', url.toString());
         }
 
-        // Force re-render by temporarily setting to null
+        // ponowne renderowanie, ustawiając tymczasowo wartość null
         setSelectedFolderId(null);
 
-        // Use setTimeout to ensure separate state updates
+        // setTimeout, aby zapewnić oddzielne aktualizacje stanu
         setTimeout(() => {
             setSelectedFolderId(folderId);
         }, 10);
     };
 
-    // Handle global search
+    // Obsługa wyszukiwania globalnego
     const handleGlobalSearch = (term: string) => {
         setSearchTerm(term);
 
@@ -152,7 +152,7 @@ const Dashboard: React.FC = () => {
             return;
         }
 
-        // Query API to search for files and folders matching term
+        // API zapytań do wyszukiwania plików i folderów pasujących do terminu
         axiosInstance.get('/nextcloud/search', {
             params: {
                 query: term
@@ -165,7 +165,7 @@ const Dashboard: React.FC = () => {
             .catch(error => {
                 console.error("Error searching files:", error);
                 setError("Błąd podczas wyszukiwania. Spróbuj ponownie.");
-                // On error, stay in normal display mode
+                // W przypadku błędu pozostań w normalnym trybie wyświetlania
                 setIsGlobalSearch(false);
             });
     };
@@ -220,6 +220,7 @@ const Dashboard: React.FC = () => {
                             userRole={userRole || null}
                             searchTerm={searchTerm}
                             isGlobalSearch={isGlobalSearch}
+
                             searchResults={searchResults}
                         />
                     ) : (

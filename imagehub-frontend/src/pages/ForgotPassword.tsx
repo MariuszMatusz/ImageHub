@@ -12,7 +12,7 @@ const ForgotPassword: React.FC = () => {
         e.preventDefault();
         console.log("Reset password request sent for:", email);
 
-        // TODO: Połącz z backendem do resetowania hasła
+
         setMessage("If this email exists, a password reset link has been sent.");
 
         // Opcjonalnie przekierowanie po kilku sekundach

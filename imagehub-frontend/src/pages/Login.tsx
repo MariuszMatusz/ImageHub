@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import "../styles/Login.css"; // Stylizacja logowania
+import "../styles/Login.css";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import "@fontsource/inter";
 import axiosInstance from "../utils/axiosInstance";
@@ -52,7 +52,7 @@ const Login: React.FC = () => {
             // Zapisz ID użytkownika
             localStorage.setItem("userId", response.data.id.toString());
 
-            // Opcjonalnie: zapisz pełne dane użytkownika, aby nie musieć korzystać z endpointu /users/me
+            // zapisz pełne dane użytkownika, aby nie musieć korzystać z endpointu /users/me
             localStorage.setItem("userData", JSON.stringify({
                 id: response.data.id,
                 username: response.data.username,

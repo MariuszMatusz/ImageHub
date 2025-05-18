@@ -5,7 +5,7 @@ import UserProfile from "./UserProfile";
 const UserPanel: React.FC = () => {
     const [activeTab, setActiveTab] = useState<string>("userProfile");
 
-    // Render the appropriate component based on the active tab
+    // Wyrenderuj odpowiedni komponent na podstawie aktywnej karty
     const renderContent = () => {
         switch (activeTab) {
             case "userProfile":

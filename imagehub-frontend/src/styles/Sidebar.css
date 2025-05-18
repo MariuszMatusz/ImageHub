@@ -1,5 +1,3 @@
-/* styles/Sidebar.css */
-
 .sidebar-wrapper {
     display: flex;
     flex-direction: column;
@@ -12,13 +10,11 @@
     font-weight: bold;
 }
 
-/* Kontener wyszukiwania - teraz poza głównym sidebarem */
 .search-container {
     width: 241px;
     margin-bottom: 10px;
 }
 
-/* Styl pola wyszukiwania */
 .search-bar {
     width: 100%;
     padding: 8px 12px 8px 30px;
@@ -38,14 +34,12 @@
     color: #666;
 }
 
-/* Główny kontener sidebara */
 .sidebar {
     display: flex;
     flex-direction: column;
     align-items: center;
 }
 
-/* Styl sidebara */
 .catalog-sidebar {
     width: 241px;
     height: 625px;
@@ -70,7 +64,6 @@
     margin-bottom: 0;
 }
 
-/* Styl dla głównych kategorii */
 .category-item {
     font-size: 16px;
     font-weight: 500;
@@ -101,7 +94,6 @@
     padding-left: 5px;
 }
 
-/* Styl dla podkategorii */
 .subcategory-list {
     padding-left: 20px;
     margin-top: 5px;
@@ -127,18 +119,13 @@
     color: white;
 }
 
-/* Dodaj te style do pliku Sidebar.css */
 
-/* Kontener wyszukiwania */
 .search-container {
     display: flex;
     align-items: center;
-    /*padding: 10px;*/
-    /*background-color: #f2f2f2;*/
-    /*border-bottom: 1px solid #ddd;*/
 }
 
-/* Pole wyszukiwania */
+
 .search-bar {
     width: 100%;
     padding: 8px 10px 8px 30px;
@@ -148,14 +135,13 @@
     font-size: 14px;
 }
 
-/* Nagłówek sidebara */
+
 .sidebar-header {
     position: relative;
     padding: 10px;
     min-height: 20px;
 }
 
-/* Przycisk dodawania folderu */
 .add-folder-button {
     position: absolute;
     top: -13px;
@@ -184,7 +170,6 @@
     font-weight: bold;
 }
 
-/* Modal overlay */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -198,7 +183,7 @@
     z-index: 1000;
 }
 
-/* Modal */
+
 .sidebar-modal {
     background-color: white;
     border-radius: 5px;
@@ -208,7 +193,6 @@
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
 
-/* Tytuł modalu */
 .sidebar-modal h3 {
     margin-top: 0;
     margin-bottom: 15px;
@@ -216,7 +200,6 @@
     font-size: 18px;
 }
 
-/* Pole wprowadzania nazwy folderu */
 .folder-name-input {
     width: 100%;
     padding: 10px;
@@ -226,14 +209,12 @@
     font-size: 14px;
 }
 
-/* Komunikat o błędzie */
 .error-message {
     color: #e53935;
     margin-bottom: 15px;
     font-size: 14px;
 }
 
-/* Przyciski w modalu */
 .modal-buttons {
     display: flex;
     justify-content: flex-end;
@@ -272,7 +253,6 @@
 }
 
 
-/* Responsywność dla urządzeń mobilnych */
 @media (max-width: 768px) {
     .sidebar-wrapper {
         margin: 20px;

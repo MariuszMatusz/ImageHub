@@ -188,13 +188,14 @@
 
 .permission-checkbox {
     display: flex;
+
     align-items: center;
     margin-bottom: 3px;
 }
 
 .permission-checkbox input[type="checkbox"] {
-    position: absolute;
-    left: 0;
+
+
 }
 
 .permission-checkbox label {
@@ -217,8 +218,6 @@
     color: #666;
     font-style: italic;
 }
-
-/* Dodatkowe style dla zmodyfikowanego komponentu */
 
 .role-permission-summary {
     font-size: 0.8rem;

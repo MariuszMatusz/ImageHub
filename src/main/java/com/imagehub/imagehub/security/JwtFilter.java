@@ -64,7 +64,6 @@ public class JwtFilter extends OncePerRequestFilter {
 
             if (userOptional.isPresent() && jwtUtil.validateToken(jwt, email)) {
                 User user = userOptional.get();
-                // Pobieramy rolę jako String zamiast enuma
                 String roleName = jwtUtil.extractRole(jwt);
 
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(

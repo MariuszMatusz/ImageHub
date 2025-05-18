@@ -1,6 +1,6 @@
 .admin-panel-container {
     display: flex;
-    height: calc(100vh - 70px); /* Account for navbar height */
+    height: calc(100vh - 70px);
     background-color: #f9f9f9;
 }
 
@@ -51,6 +51,7 @@
 
 .admin-sidebar-footer {
     margin-top: auto;
+    margin-bottom: 40px;
     padding-top: 20px;
 }
 
@@ -75,7 +76,7 @@
     overflow-y: auto;
 }
 
-/* Common styles for all admin panel components */
+/* Wspólne style dla wszystkich komponentów panelu administracyjnego */
 .status-message {
     padding: 12px 15px;
     margin-bottom: 20px;

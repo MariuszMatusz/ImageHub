@@ -45,7 +45,7 @@ const FolderPermissions: React.FC = () => {
         text: string;
     } | null>(null);
 
-    // Form states for adding/editing permissions
+    // Stany formularzy do dodawania/edytowania uprawnień
     const [showPermissionForm, setShowPermissionForm] = useState<boolean>(false);
     const [newPermission, setNewPermission] = useState<{
         canRead: boolean;
@@ -61,7 +61,8 @@ const FolderPermissions: React.FC = () => {
         includeSubfolders: false
     });
 
-    // Load users, folders, and permissions on component mount
+    //
+    // Załaduj użytkowników, foldery i uprawnienia podczas montowania komponentu
     useEffect(() => {
         fetchUsers();
         fetchFolders();
@@ -131,7 +132,7 @@ const FolderPermissions: React.FC = () => {
                     canRead: newPermission.canRead,
                     canWrite: newPermission.canWrite,
                     canDelete: newPermission.canDelete,
-                    canDownload: newPermission.canDownload, // Dodane nowe uprawnienie
+                    canDownload: newPermission.canDownload,
                     includeSubfolders: newPermission.includeSubfolders
                 }
             });
@@ -141,7 +142,7 @@ const FolderPermissions: React.FC = () => {
                 text: "Uprawnienia zostały dodane pomyślnie."
             });
 
-            // Reset form and refresh permissions
+            // Zresetuj formularz i odśwież uprawnienia
             setShowPermissionForm(false);
             setSelectedFolder("");
             setNewPermission({
@@ -177,7 +178,7 @@ const FolderPermissions: React.FC = () => {
                 text: "Uprawnienia zostały usunięte pomyślnie."
             });
 
-            // Refresh permissions
+            // Odśwież uprawnienia
             if (selectedUser) {
                 fetchUserPermissions(selectedUser);
             }
@@ -190,10 +191,10 @@ const FolderPermissions: React.FC = () => {
         }
     };
 
-    // Helper function to recursively render folder options
+    // Funkcja pomocnicza do rekurencyjnego renderowania opcji folderów
     const renderFolderOptions = (folders: Folder[], level = 0) => {
         return folders
-            .filter(folder => folder.isDirectory) // Filter only directories
+            .filter(folder => folder.isDirectory) // Filtruj tylko katalogi
             .map(folder => {
                 const indent = "\u00A0".repeat(level * 4);
 

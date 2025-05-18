@@ -16,14 +16,14 @@ interface User {
     id: number;
     username: string;
     email: string;
-    role: Role; // Zmiana z string na obiekt Role
+    role: Role;
 }
 
 interface NewUser {
     username: string;
     email: string;
     password: string;
-    roleId: number; // Używamy ID roli zamiast nazwy
+    roleId: number;
 }
 
 const UserManagement: React.FC = () => {
@@ -36,7 +36,7 @@ const UserManagement: React.FC = () => {
         text: string;
     } | null>(null);
 
-    // Edit user state
+    // Edytuj użytkownika
     const [editingUserId, setEditingUserId] = useState<number | null>(null);
     const [editedUser, setEditedUser] = useState<{
         username: string;
@@ -50,7 +50,7 @@ const UserManagement: React.FC = () => {
         password: ''
     });
 
-    // New user state
+    // Nowy użytkownik
     const [showAddUserForm, setShowAddUserForm] = useState<boolean>(false);
     const [newUser, setNewUser] = useState<NewUser>({
         username: '',
@@ -59,7 +59,7 @@ const UserManagement: React.FC = () => {
         roleId: 0
     });
 
-    // Load users and roles on component mount
+    // Załaduj użytkowników i role
     useEffect(() => {
         Promise.all([
             fetchUsers(),
@@ -115,7 +115,7 @@ const UserManagement: React.FC = () => {
             username: user.username,
             email: user.email,
             roleId: user.role.id,
-            password: '' // Password field is empty when editing
+            password: ''
         });
     };
 
@@ -147,7 +147,7 @@ const UserManagement: React.FC = () => {
                 role: selectedRole
             };
 
-// Dodaj hasło tylko jeśli zostało wprowadzone
+            // Dodaj hasło tylko jeśli zostało wprowadzone
             if (editedUser.password && editedUser.password.trim() !== '') {
                 updateData.password = editedUser.password;
             }
@@ -162,7 +162,7 @@ const UserManagement: React.FC = () => {
                 text: `Użytkownik ${editedUser.username} został zaktualizowany.`
             });
             setEditingUserId(null);
-            fetchUsers(); // Refresh the user list
+            fetchUsers(); // Odśwież listę użytkowników
         } catch (error) {
             console.error("Error updating user:", error);
 
@@ -194,7 +194,7 @@ const UserManagement: React.FC = () => {
                 type: 'success',
                 text: `Użytkownik ${username} został usunięty.`
             });
-            fetchUsers(); // Refresh the user list
+            fetchUsers(); // Odśwież listę użytkowników
         } catch (error) {
             setStatusMessage({
                 type: 'error',
@@ -207,7 +207,7 @@ const UserManagement: React.FC = () => {
     const handleAddUser = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Validate form
+        // Zatwierdź formularz
         if (!newUser.username || !newUser.email || !newUser.password || newUser.roleId === 0) {
             setStatusMessage({
                 type: 'error',
@@ -245,7 +245,7 @@ const UserManagement: React.FC = () => {
                 password: '',
                 roleId: selectedRole.id
             });
-            fetchUsers(); // Refresh the user list
+            fetchUsers(); // Odśwież listę użytkowników
         } catch (error) {
             console.error("Error adding user:", error);
 
