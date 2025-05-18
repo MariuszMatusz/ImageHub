@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "react-router-dom": "^7.2.0"
+  },
+  "devDependencies": {
+    "http-proxy-middleware": "^3.0.3"
+  }
+}
